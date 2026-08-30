@@ -1668,6 +1668,19 @@ ZASADY:
       cheats: win.reduce((s, e) => s + e.cheats, 0), n: win.length };
   }, [series, ustawienia]);
 
+  /* ── Cel makro na dziś ──────────────────────────────────
+     Białko i tłuszcz są podłogami z ZYWIENIE.md, nie procentami z kalorii —
+     przy spadającej wadze procenty zjechałyby razem z nią, a te dwie
+     wartości mają zostać. Deficyt robimy na węglowodanach, więc to one
+     są resztą po odjęciu dwóch pozostałych. */
+  const cel = useMemo(() => {
+    const masa = pusty ? ustawienia.kamienie[0].weight : latest.trend;
+    const bialko = Math.max(Math.round(masa * 2.1), Math.round(masa * 1.6));
+    const tluszcz = Math.max(70, Math.round((ustawienia.planKcal * 0.25) / 9));
+    const wegle = Math.max(0, Math.round((ustawienia.planKcal - bialko * 4 - tluszcz * 9) / 4));
+    return { bialko, tluszcz, wegle, blonnik: 38 };
+  }, [latest, pusty, ustawienia]);
+
   /* ── Raport tygodniowy ──────────────────────────────────
      Dotąd był stałą z danymi przykładowymi, więc przycisk „Kopiuj raport"
      kopiował cudzy tydzień. Teraz składa się z tego, co faktycznie zapisane. */
@@ -1705,6 +1718,7 @@ ZASADY:
       L.push(`  Plan: ${ustawienia.planKcal} kcal/dzień (${balance.vsPlan >= 0 ? "+" : "−"}${Math.abs(Math.round(balance.vsPlan))})`);
       L.push(`  Utrzymanie wyliczone z wagi: ${Math.round(balance.maintenance)} kcal/dzień`);
       L.push(`  Realny deficyt: ${Math.round(balance.realDeficit)} kcal/dzień`);
+      L.push(`  Cel makro: białko ${cel.bialko} g · tłuszcz min. ${cel.tluszcz} g · węgle ${cel.wegle} g · błonnik ${cel.blonnik} g`);
       L.push(`  Cheat meale: ${balance.cheats}`);
       L.push("");
     }
@@ -1738,7 +1752,7 @@ ZASADY:
     L.push("  · liczby sesji poszczególnych aktywności");
 
     return L.join("\n");
-  }, [series, latest, balance, ustawienia, SCANS, WYDARZENIA, pusty, variance]);
+  }, [series, latest, balance, ustawienia, SCANS, WYDARZENIA, pusty, variance, cel]);
 
   /* Sygnały liczy kod, nie model — reguły z ROADMAP muszą dawać ten sam
      wynik za każdym razem. Model dostaje gotowe flagi i tylko je opisuje. */
@@ -1871,6 +1885,14 @@ ZASADY:
             <span className="lbl">Odchylenie</span>
             <span className="big">{signed(variance)}<em>kg</em></span>
             <span className="sub">{variance <= 0.3 ? "w planie" : "powyżej planu"}</span>
+          </div>
+          <div className="col">
+            <span className="lbl">Cel dzienny</span>
+            <span className="big">{ustawienia.planKcal}<em>kcal</em></span>
+            <span className="sub makro">
+              B {cel.bialko} g · T {cel.tluszcz} g · W {cel.wegle} g
+              <em className="makro-blon">błonnik {cel.blonnik} g</em>
+            </span>
           </div>
         </div>
         <div className="progress">
@@ -2081,7 +2103,19 @@ ZASADY:
                 <input type="file" accept=".csv,text/csv" className="imp-in"
                        onChange={wczytajPlik} />
               </label>
-              <span className="delta good">−60 vs plan</span>
+              {(() => {
+                /* Różnica liczy się z wpisywanej wartości, tak jak przy wadze
+                   i pasie. Średnia z czterech tygodni ma swoje miejsce
+                   w Postępie — tutaj byłaby wyrwana z kontekstu. */
+                const k = liczba(kcal);
+                if (k == null) return <span className="delta quiet">— vs plan</span>;
+                const dv = Math.round(k - ustawienia.planKcal);
+                return (
+                  <span className={"delta " + (dv <= 0 ? "good" : "warn")}>
+                    {dv === 0 ? "0" : signed(dv, 0)} vs plan
+                  </span>
+                );
+              })()}
             </div>
           </div>
 
@@ -4175,6 +4209,9 @@ const CSS = `
 .zap-body{padding:0 14px 14px}
 .zap-opis{font-size:12px;color:var(--ink-2);font-style:italic;margin:0 0 11px;
   padding-left:11px;border-left:2px solid var(--rule)}
+.ledger .col .sub.makro{display:flex;flex-direction:column;gap:2px;line-height:1.5}
+.makro-blon{font-style:normal;opacity:.7}
+
 .jact{display:flex;gap:8px;margin-top:10px}
 .zdalne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
