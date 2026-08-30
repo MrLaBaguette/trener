@@ -1417,6 +1417,18 @@ export default function Mockup() {
     setUstawienia({ ...ustawienia, fazy: f });
   }
 
+  function usunWymiar(data) {
+    if (!window.confirm(`Usunąć pomiar z ${data}?`)) return;
+    setWymiary((prev) => prev.filter((w) => w.date !== data));
+  }
+
+  /* Wczytanie do formularza; zapis nadpisze wpis o tej samej dacie. */
+  function wczytajWymiar(w) {
+    const f = { date: w.date, masa: num(w.masa) };
+    MIARY.forEach(([k]) => { f[k] = w[k] == null ? "" : num(w[k], 1); });
+    setWymForm(f);
+  }
+
   const ostWym = WYMIARY.length ? WYMIARY[WYMIARY.length - 1] : null;
 
   /* Pomiar wymiarów. Puste pole oznacza „nie mierzyłem" i dziedziczy wartość
@@ -1870,7 +1882,7 @@ ZASADY:
           <span>tydzień {weekNo} z 44</span><span className="dot" />
           <span>{phase.label}</span>
         </div>
-        <div className="ledger">
+        <div className="ledger cztery">
           <div className="col">
             <span className="lbl">Wykonanie</span>
             <span className="big">{num(latest.trend)}<em>kg</em></span>
@@ -2788,12 +2800,18 @@ ZASADY:
               <button className="primary" onClick={zapiszWymiar}>Zapisz pomiar</button>
               <div className="tblwrap">
                 <table className="tbl">
-                  <thead><tr><th>Data</th><th>Waga</th>{MIARY.map(([k,l]) => <th key={k}>{l}</th>)}</tr></thead>
+                  <thead><tr><th>Data</th><th>Waga</th>{MIARY.map(([k,l]) => <th key={k}>{l}</th>)}<th /></tr></thead>
                   <tbody>
                     {WYMIARY.map((w) => (
                       <tr key={w.id}><td>{w.date}</td>
                         <td className="n strong">{num(w.masa)}</td>
-                        {MIARY.map(([k]) => <td key={k} className="n">{num(w[k], 1)}</td>)}</tr>
+                        {MIARY.map(([k]) => <td key={k} className="n">{num(w[k], 1)}</td>)}
+                        <td className="n wact">
+                          <button className="mini" title="Wczytaj do formularza"
+                                  onClick={() => wczytajWymiar(w)}>edytuj</button>
+                          <button className="mini ghost" title="Usuń pomiar"
+                                  onClick={() => usunWymiar(w.date)}>usuń</button>
+                        </td></tr>
                     ))}
                     {WYMIARY.length >= 2 && (
                     <tr className="deltarow"><td>zmiana</td>
@@ -2802,6 +2820,7 @@ ZASADY:
                         return <td key={k} className={"n " + (dv < 0 ? "good" : dv > 0 ? "warn" : "")}>
                           {dv === 0 ? "—" : signed(dv, 1)}</td>;
                       })}
+                      <td />
                     </tr>
                     )}
                   </tbody>
@@ -3706,6 +3725,11 @@ const CSS = `
 .dot{width:3px;height:3px;background:var(--rule);border-radius:50%}
 .ledger{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);
   border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.ledger.cztery{grid-template-columns:repeat(4,1fr)}
+/* Cztery liczby w rzędzie potrzebują mniejszego stopnia, żeby zmieściły się
+   bez łamania na wąskim ekranie. */
+.ledger.cztery .big{font-size:32px}
+@media(max-width:900px){ .ledger.cztery{grid-template-columns:repeat(2,1fr)} }
 .col{background:var(--paper);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
 .lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
 .big{font-family:'Instrument Serif',serif;font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
@@ -4213,6 +4237,8 @@ const CSS = `
 .makro-blon{font-style:normal;opacity:.7}
 
 .jact{display:flex;gap:8px;margin-top:10px}
+.wact{white-space:nowrap}
+.wact .mini{margin-left:4px}
 .zdalne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
   border-radius:6px;background:var(--bg-1);font-size:13px}
