@@ -975,9 +975,18 @@ export default function Mockup() {
   const [zapisBlad, setZapisBlad] = useState(null);
   const pierwszy = useRef(true);
 
+  const [zapisano, setZapisano] = useState(null);
+  const pierwszyZapis = useRef(true);
+
   useEffect(() => {
-    const ok = zapisz(KLUCZ, { schema: SCHEMA, zapis: new Date().toISOString(), dane: stanDoZapisu });
-    setZapisBlad(ok ? null : "Przeglądarka nie pozwala zapisywać danych. Włącz pamięć lokalną albo wyjdź z trybu prywatnego.");
+    const teraz = new Date().toISOString();
+    const ok = zapisz(KLUCZ, { schema: SCHEMA, zapis: teraz, dane: stanDoZapisu });
+    setZapisBlad(ok ? null : "Przeglądarka nie pozwala zapisywać danych. Wyjdź z trybu prywatnego albo zezwól na pamięć lokalną — inaczej nic się nie zachowa.");
+    if (ok) setZapisano(teraz);
+    /* Pierwsze uruchomienie efektu to tylko zapis stanu wczytanego z pamięci,
+       nie zmiana wprowadzona przez człowieka — nie ma czego wysyłać. */
+    if (pierwszyZapis.current) { pierwszyZapis.current = false; return; }
+    if (ok) wyslijWTle();
   }, [stanDoZapisu]);
 
   useEffect(() => { zapisz(KLUCZ_USTAWIENIA, ustawienia); }, [ustawienia]);
@@ -1063,13 +1072,30 @@ export default function Mockup() {
     }
   }
 
-  /* Pobranie przy starcie, jeśli synchronizacja jest włączona. */
+  /* Przy starcie tylko sprawdzamy, czy zdalne są nowsze — i mówimy o tym.
+     Automatyczne pobieranie kasowałoby pracę zrobioną na tym urządzeniu,
+     a to jedyna operacja w apce zdolna zniszczyć dane. */
+  const [zdalneNowsze, setZdalneNowsze] = useState(false);
+
   useEffect(() => {
-    if (pierwszy.current) {
-      pierwszy.current = false;
-      if (ustawienia.autosync && ustawienia.token && ustawienia.repo) synchronizuj("pobierz", true);
-    }
+    if (!pierwszy.current) return;
+    pierwszy.current = false;
+    if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
+    ghPobierz(ustawienia).then(({ dane, sha }) => {
+      setSync((p) => ({ ...p, sha }));
+      const lokalny = (odczytaj(KLUCZ, {}) || {}).zapis || "";
+      if (dane && dane.zapis && (!lokalny || dane.zapis > lokalny)) setZdalneNowsze(true);
+    }).catch(() => {});
   }, []);
+
+  /* Wysyłka po zapisie. Bez tego kopia w repozytorium starzeje się cicho,
+     a przy przesiadce na drugie urządzenie wygląda jak utrata danych. */
+  const wyslijPozniej = useRef(null);
+  function wyslijWTle() {
+    if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
+    clearTimeout(wyslijPozniej.current);
+    wyslijPozniej.current = setTimeout(() => synchronizuj("wyslij"), 2500);
+  }
 
   /* ── Zapis tygodnia ─────────────────────────────────────
      Wpis z tą samą datą nadpisuje poprzedni zamiast tworzyć duplikat —
@@ -1809,6 +1835,14 @@ ZASADY:
     <div className={"rej" + (dark ? " dark" : "")}>
       <style>{CSS}</style>
 
+      {zdalneNowsze && (
+        <div className="zdalne">
+          <span>W repozytorium są nowsze dane niż na tym urządzeniu — prawdopodobnie z drugiego sprzętu.</span>
+          <button className="mini" onClick={() => { setZdalneNowsze(false); synchronizuj("pobierz"); }}>Pobierz je</button>
+          <button className="mini ghost" onClick={() => setZdalneNowsze(false)}>Zostaw</button>
+        </div>
+      )}
+
       <div className="mockbar">
         <span>Mock-up · dane przykładowe</span>
         <button className="themebtn" onClick={() => setDark(!dark)}>
@@ -2035,7 +2069,7 @@ ZASADY:
           </div>
 
           <div className="frow">
-            <span className="fkey">Kalorie <em>plan: 2400/d</em></span>
+            <span className="fkey">Kalorie <em>plan: {ustawienia.planKcal}/d</em></span>
             <div className="fval kcal">
               <input value={kcal} onChange={(e) => setKcal(e.target.value)} />
               <span className="unit">kcal/dzień średnio</span>
@@ -2530,7 +2564,7 @@ ZASADY:
 
           <section className="panel">
             <div className="bal-head"><span>Bilans energetyczny</span>
-              <button className="ghost tiny">plan: 2400 kcal/d · zmień</button></div>
+              <button className="ghost tiny" onClick={() => { setTab("wpis"); setSetOpen(true); }}>plan: {ustawienia.planKcal} kcal/d · zmień</button></div>
             <div className="ledger">
               <div className="col"><span className="lbl">Zjedzone</span>
                 <span className="mid">{Math.round(balance.intake)}<em>kcal/d</em></span>
@@ -3258,7 +3292,15 @@ ZASADY:
       </section>
 
       <footer className="foot">
-        <span>{zapisBlad ? zapisBlad : "Dane zapisane w tej przeglądarce"}</span>
+        <span>
+          {zapisBlad ? zapisBlad
+            : zapisano ? `Zapisano lokalnie ${String(zapisano).slice(11, 16)}`
+            : "Dane w tej przeglądarce"}
+          {sync.stan === "pracuje" && " · wysyłam…"}
+          {sync.kiedy && sync.stan === "gotowe" && !sync.blad &&
+            ` · GitHub ${String(sync.kiedy).slice(11, 16)}`}
+          {sync.blad && " · synchronizacja: " + sync.blad}
+        </span>
         <span className="foot-dev">
           Invented &amp; designed by <b>Big Dog</b> · engineered by <b>Claude</b> · Łódź 2026
         </span>
@@ -4134,6 +4176,10 @@ const CSS = `
 .zap-opis{font-size:12px;color:var(--ink-2);font-style:italic;margin:0 0 11px;
   padding-left:11px;border-left:2px solid var(--rule)}
 .jact{display:flex;gap:8px;margin-top:10px}
+.zdalne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
+  border-radius:6px;background:var(--bg-1);font-size:13px}
+.zdalne span{flex:1;min-width:220px}
 
 /* ── kuchnia i raporty ───────────────────────────────────── */
 .dsel{padding:4px 8px;border:1px solid var(--rule);border-radius:4px;
