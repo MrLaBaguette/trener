@@ -346,7 +346,8 @@ function czytajRaport(txt) {
     return { nazwa: k[0], wynik: k[1], zakres: k[2] || "", uwaga: k[3] || "" };
   }).filter((p) => p.nazwa && p.wynik);
 
-  return { rodzaj, data, pozycje, tresc: txt, braki: !rodzaj ? ["rodzaj badania"] : [] };
+  const grupa = fm.grupa || (reszta.match(/^##\s+(.+)$/m) || [])[1] || null;
+  return { rodzaj, data, grupa, pozycje, tresc: txt, braki: !rodzaj ? ["rodzaj badania"] : [] };
 }
 
 const SCHEMA = 2;
@@ -1260,15 +1261,36 @@ export default function Mockup() {
     const rp = raportPodglad;
     const data = rp.data || new Date().toISOString().slice(0, 10);
     if (rp.rodzaj === "krew") {
-      setKrew(rp.pozycje.map((p, i) => ({
-        id: Date.now() + i, date: data, nazwa: p.nazwa, wynik: p.wynik,
-        zakres: p.zakres, uwaga: p.uwaga,
-      })));
+      /* Widok grupuje wyniki po pobraniu, nie po parametrze — porównanie
+         majowego z grudniowym ma sens tylko w obrębie jednego dnia. */
+      const jednostka = (w) => (String(w).match(/[\d,.]+\s*(.*)$/) || [])[1] || "";
+      const wartosc = (w) => (String(w).match(/^[\d,.]+/) || [""])[0];
+      const grupa = {
+        grupa: rp.grupa || "Pobranie " + data,
+        data,
+        poz: rp.pozycje.map((p) => ({
+          n: p.nazwa, w: wartosc(p.wynik), j: jednostka(p.wynik),
+          ref: p.zakres, uwaga: p.uwaga,
+          flaga: /granic|podwyższ|obniż|nisk|wysok/i.test(p.uwaga) ? "uwaga" : null,
+        })),
+      };
+      setKrew((prev) => [...prev.filter((g) => g.data !== data), grupa]
+        .sort((a, b) => (a.data < b.data ? -1 : 1)));
     } else if (rp.rodzaj === "spirometria") {
-      setSpiro(rp.pozycje.map((p, i) => ({
-        id: Date.now() + i, date: data, param: p.nazwa, wynik: p.wynik,
-        norma: p.zakres, uwaga: p.uwaga,
-      })));
+      /* Spirometria trzyma jeden wiersz na badanie, nie na parametr —
+         wartości odniesienia dla grudnia to FEV1, FVC i ich stosunek. */
+      const licz = (n) => {
+        const p = rp.pozycje.find((x) => new RegExp("^" + n, "i").test(x.nazwa));
+        return p ? parseFloat(String(p.wynik).replace(",", ".")) : null;
+      };
+      const fev1 = licz("FEV1(?!/)"), fvc = licz("FVC");
+      const wiersz = {
+        id: Date.now(), date: data, fev1, fvc,
+        ratio: licz("FEV1/FVC") ?? (fev1 && fvc ? Math.round((fev1 / fvc) * 1000) / 10 : null),
+        norma: licz("% normy") ?? null,
+      };
+      setSpiro((prev) => [...prev.filter((x) => x.date !== data), wiersz]
+        .sort((a, b) => (a.date < b.date ? -1 : 1)));
     } else if (rp.rodzaj === "dexa") {
       const w = (n) => {
         const p = rp.pozycje.find((x) => new RegExp(n, "i").test(x.nazwa));
@@ -2481,22 +2503,29 @@ ZASADY:
           </section>
           )}
 
-          <section className="panel">
-            <div className="bal-head"><span>Skład ciała</span>
-              <span className="tiny-note">pełna historia w zakładce Pomiary</span></div>
-            <div className="ledger">
-              <div className="col"><span className="lbl">Tłuszcz</span>
-                <span className="mid">{num(SCANS[SCANS.length-1].fat)}<em>%</em></span>
-                <span className="sub">{signed(SCANS[SCANS.length-1].fat - SCANS[0].fat)} od czerwca</span></div>
-              <div className="col"><span className="lbl">Masa beztłuszczowa</span>
-                <span className="mid quiet">{num(SCANS[SCANS.length-1].lean)}<em>kg</em></span>
-                <span className="sub">{signed(SCANS[SCANS.length-1].lean - SCANS[0].lean)} od czerwca</span></div>
-              <div className="col var ok"><span className="lbl">Cel</span>
-                <span className="mid">13<em>%</em></span>
-                <span className="sub">zostało {num(SCANS[SCANS.length-1].fat - 13)} pkt</span></div>
-            </div>
-            <p className="note">Masa beztłuszczowa spadła o 0,4 kg przy 1,9 kg ubytku wagi — deficyt zdejmuje głównie tłuszcz.</p>
-          </section>
+          {SCANS.length > 0 && (() => {
+            const sc = SCANS[SCANS.length - 1];
+            const pierwszy = SCANS[0];
+            const wiecej = SCANS.length > 1;
+            return (
+              <section className="panel">
+                <div className="bal-head"><span>Skład ciała</span>
+                  <span className="tiny-note">pełna historia w zakładce Pomiary</span></div>
+                <div className="ledger">
+                  <div className="col"><span className="lbl">Tłuszcz</span>
+                    <span className="mid">{num(sc.fat)}<em>%</em></span>
+                    <span className="sub">{wiecej ? `${signed(sc.fat - pierwszy.fat)} od ${pierwszy.date}` : "pierwszy pomiar"}</span></div>
+                  <div className="col"><span className="lbl">Masa beztłuszczowa</span>
+                    <span className="mid quiet">{num(sc.lean)}<em>kg</em></span>
+                    <span className="sub">{wiecej ? `${signed(sc.lean - pierwszy.lean)} od ${pierwszy.date}` : "punkt odniesienia"}</span></div>
+                  <div className="col var ok"><span className="lbl">Cel</span>
+                    <span className="mid">13<em>%</em></span>
+                    <span className="sub">zostało {num(sc.fat - 13)} pkt</span></div>
+                </div>
+                <p className="note">DEXA nie służy do potwierdzania, że waga spada — tylko do sprawdzenia, czy schodzi tłuszcz czy mięśnie. Spadek masy beztłuszczowej o więcej niż 1 kg to sygnał do zwolnienia tempa.</p>
+              </section>
+            );
+          })()}
         </>
       )}
 
