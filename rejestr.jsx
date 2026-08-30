@@ -113,6 +113,18 @@ REGUŁY, KTÓRE MUSISZ RESPEKTOWAĆ
 - Deficyt robimy jedzeniem i krokami, nie dokładaniem treningu.
 - Pojedynczy odczyt wagi nic nie znaczy. Komentujesz wyłącznie średnią.
 
+CZEGO NIE WOLNO CI ROBIĆ
+- Nie zmyślaj szczegółów, których nie ma w raporcie. Nie masz logu sesji ani
+  obciążeń — nie pisz, jak wypadły kolejne serie, bo tego nie widzisz.
+- Sen jest podany jako ocena jakości w skali 1–5, NIE jako liczba godzin.
+  Nigdy nie przeliczaj tej cyfry na godziny.
+- Aktywności są podane jako liczba tygodni, w których wystąpiły, NIE jako
+  liczba sesji. Nie wyciągaj z tego wniosków o częstotliwości.
+- Nie proponuj umówienia badania, które jest już w kalendarzu.
+- Marsz i kroki nie są mierzone. Nie oceniaj ich ilości.
+- Jeśli czegoś potrzebujesz, a nie ma tego w raporcie, powiedz wprost, że tego
+  nie widzisz. To jest lepsze niż domysł podany jako fakt.
+
 FORMAT ODPOWIEDZI
 Zwykły tekst, akapity oddzielone pustą linią. Bez nagłówków i bez list
 punktowanych. To ma się czytać jak wiadomość od trenera, nie jak raport.
@@ -994,7 +1006,7 @@ export default function Mockup() {
     if (dane.zapisane) setZapisane(dane.zapisane);
   }
 
-  async function synchronizuj(kierunek) {
+  async function synchronizuj(kierunek, auto) {
     if (!ustawienia.token || !ustawienia.repo) {
       setSync({ ...sync, stan: "blad", blad: "Uzupełnij repozytorium i token w Ustawieniach." });
       return;
@@ -1006,6 +1018,23 @@ export default function Mockup() {
         if (!dane) {
           setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: "W repozytorium nie ma jeszcze pliku — wyślij dane z tego urządzenia.", sha: null });
           return;
+        }
+        /* Pobranie nadpisuje pamięć urządzenia, więc musi sprawdzić, co jest
+           nowsze. Bez tego pobranie przy starcie kasuje pomiar wpisany po
+           ostatniej wysyłce — i robi to po cichu. */
+        const lokalny = (odczytaj(KLUCZ, {}) || {}).zapis || "";
+        const zdalny = dane.zapis || "";
+        if (lokalny && zdalny && lokalny > zdalny) {
+          if (auto) {
+            setSync({ stan: "gotowe", kiedy: new Date().toISOString(), sha,
+              blad: "Dane na tym urządzeniu są nowsze niż w repozytorium — nic nie pobrałem. Kliknij „Wyślij stąd”, żeby je wysłać." });
+            return;
+          }
+          const zgoda = window.confirm(
+            "Na tym urządzeniu masz nowsze dane niż w repozytorium.\n\n" +
+            "OK — pobierz mimo to i porzuć zmiany zrobione tutaj.\nAnuluj — zostaw jak jest."
+          );
+          if (!zgoda) { setSync({ ...sync, stan: "bezczynny", sha }); return; }
         }
         wgrajStan(dane.dane || dane);
         setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha });
@@ -1038,7 +1067,7 @@ export default function Mockup() {
   useEffect(() => {
     if (pierwszy.current) {
       pierwszy.current = false;
-      if (ustawienia.autosync && ustawienia.token && ustawienia.repo) synchronizuj("pobierz");
+      if (ustawienia.autosync && ustawienia.token && ustawienia.repo) synchronizuj("pobierz", true);
     }
   }, []);
 
@@ -1100,6 +1129,28 @@ export default function Mockup() {
     setStage("form");
     const n = new Date(d(dataWpisu) + 7 * 864e5);
     setDataWpisu(n.toISOString().slice(0, 10));
+  }
+
+  /* Usunięcie wpisu zabiera też komentarz — jeden tydzień to jeden rekord.
+     Dane dzienne z importu CSV zostają, bo należą do kalendarza. */
+  function usunTydzien(data) {
+    if (!window.confirm(`Usunąć wpis z ${data} razem z komentarzem?`)) return;
+    setEntries((prev) => prev.filter((e) => e.date !== data));
+    setComments((prev) => { const k = { ...prev }; delete k[data]; return k; });
+    setOpenWeek(null);
+  }
+
+  /* Poprawka po fakcie: wpis wraca do formularza, a zapis go nadpisze,
+     bo zapiszTydzien dopasowuje po dacie. */
+  function wczytajTydzien(e) {
+    setDataWpisu(e.date);
+    setWaga(num(e.weight)); setPas(e.waist == null ? "" : String(e.waist));
+    setKcal(e.kcal ? String(e.kcal) : "");
+    setSen(e.sleep); setFbw(e.fbw); setSila(Math.max(0, e.sila - 1));
+    setAkty(e.acts || []); setCheaty(e.cheats || 0);
+    setNotatka(e.note || ""); setPoza(!!e.poza);
+    setKom(COMMENTS[e.date] || ""); setSkopiowane(false);
+    setStage("form"); setTab("wpis");
   }
 
   /* ── Kuchnia ────────────────────────────────────────────
@@ -1610,13 +1661,17 @@ ZASADY:
     if (latest.waist) L.push(`Pas: ${num(latest.waist)} cm`);
     const ost4 = series.slice(-4);
     const sr = (f) => ost4.reduce((a, e) => a + f(e), 0) / ost4.length;
-    L.push(`Sen (średnia z ${ost4.length} tyg.): ${sr((e) => e.sleep).toFixed(1)} / 5`);
-    L.push(`FBW (średnia z ${ost4.length} tyg.): ${sr((e) => e.fbw).toFixed(1)} / tydzień`);
+    /* Jednostki i skale wypisane wprost. Bez tego „2,5 / 5" bywa czytane
+       jako godziny snu — to nie jest błąd czytającego, tylko raportu. */
+    L.push(`Sen — subiektywna ocena jakości w skali 1–5, gdzie 1 to noc rozbita: ${sr((e) => e.sleep).toFixed(1)}`);
+    L.push(`  (liczby godzin nie mierzymy; wyjściowo jest to 5–6 h z przerwami)`);
+    L.push(`Sesje FBW na tydzień: ${sr((e) => e.fbw).toFixed(1)}`);
     L.push(`Progres siły: ${SILA[Math.max(0, Math.min(4, latest.sila - 1))]}`);
     const licznik = {};
     ost4.forEach((e) => (e.acts || []).forEach((a) => { licznik[a] = (licznik[a] || 0) + 1; }));
-    const akt = Object.entries(licznik).map(([a, n]) => `${a} ${n}`).join(", ");
-    if (akt) L.push(`Aktywności z ${ost4.length} tyg.: ${akt}`);
+    const akt = Object.entries(licznik)
+      .map(([a, n]) => `${a} — w ${n} z ${ost4.length} tyg.`).join("; ");
+    L.push(`Aktywności poza FBW (liczba tygodni, w których wystąpiły, NIE liczba sesji): ${akt || "brak zaznaczonych"}`);
     L.push("");
     if (balance.n >= 2) {
       L.push(`BILANS ENERGETYCZNY (${balance.n} tyg.)`);
@@ -1637,8 +1692,27 @@ ZASADY:
       L.push("NOTATKI");
       notatki.forEach((e) => L.push(`  ${e.date}: ${e.note}`));
     }
+
+    /* Terminy z kalendarza. Bez nich trener doradza umówienie badania,
+       które jest już umówione — i wygląda, jakby nie czytał. */
+    const dzis = new Date().toISOString().slice(0, 10);
+    const blisko = (WYDARZENIA || [])
+      .filter((w) => !w.zrobione && d(w.d) >= d(dzis) && d(w.d) <= d(dzis) + 28 * 864e5)
+      .sort((a, b) => (a.d < b.d ? -1 : 1));
+    L.push("");
+    L.push("W KALENDARZU NA NAJBLIŻSZE 4 TYGODNIE (już zaplanowane, nie proponuj umawiania)");
+    if (blisko.length) blisko.forEach((w) => L.push(`  ${w.d} — ${w.n}`));
+    else L.push("  nic zaplanowanego");
+
+    L.push("");
+    L.push("CZEGO W TYCH DANYCH NIE MA — nie zgaduj i nie komentuj:");
+    L.push("  · logu sesji, obciążeń, liczby serii ani powtórzeń");
+    L.push("  · przebiegu pojedynczych treningów i tego, jak wypadły kolejne serie");
+    L.push("  · liczby kroków i marszu — nie są mierzone");
+    L.push("  · liczby sesji poszczególnych aktywności");
+
     return L.join("\n");
-  }, [series, latest, balance, ustawienia, SCANS, pusty, variance]);
+  }, [series, latest, balance, ustawienia, SCANS, WYDARZENIA, pusty, variance]);
 
   /* Sygnały liczy kod, nie model — reguły z ROADMAP muszą dawać ten sam
      wynik za każdym razem. Model dostaje gotowe flagi i tylko je opisuje. */
@@ -2906,7 +2980,7 @@ ZASADY:
       {/* ── DZIENNIK ── */}
       {tab === "dziennik" && (
         <section className="panel">
-          <div className="bal-head"><span>Dziennik tygodni</span><span className="tiny-note">8 wpisów</span></div>
+          <div className="bal-head"><span>Dziennik tygodni</span><span className="tiny-note">{series.length === 1 ? "1 wpis" : series.length + " wpisów"}</span></div>
           <div className="journal">
             {[...series].reverse().map((e) => {
               const open = openWeek === e.date;
@@ -2933,6 +3007,10 @@ ZASADY:
                         <span><em>cheat</em>{e.cheats}</span>
                       </div>
                       {e.note && <p className="jnote">„{e.note}"</p>}
+                      <div className="jact">
+                        <button className="ghost tiny" onClick={() => wczytajTydzien(e)}>Wczytaj do formularza</button>
+                        <button className="ghost tiny del" onClick={() => usunTydzien(e.date)}>Usuń wpis</button>
+                      </div>
                       {kom ? (
                         <div className="jcom">
                           <span className="jcomlbl">Ronnie</span>
@@ -4055,6 +4133,8 @@ const CSS = `
 .zap-body{padding:0 14px 14px}
 .zap-opis{font-size:12px;color:var(--ink-2);font-style:italic;margin:0 0 11px;
   padding-left:11px;border-left:2px solid var(--rule)}
+.jact{display:flex;gap:8px;margin-top:10px}
+
 /* ── kuchnia i raporty ───────────────────────────────────── */
 .dsel{padding:4px 8px;border:1px solid var(--rule);border-radius:4px;
   background:var(--bg-1);color:var(--ink-1);font-family:inherit;font-size:12px}
