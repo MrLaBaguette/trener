@@ -7,7 +7,8 @@
 <title>Rejestr projektu</title>
 
 <link rel="manifest" href="./manifest.json" />
-<link rel="apple-touch-icon" href="./img/przysiad.webp" />
+<link rel="apple-touch-icon" href="./img/ikona-180.png" />
+<link rel="icon" type="image/png" href="./img/ikona-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Rejestr" />
 
@@ -34,7 +35,7 @@
    Poprzednio było tu Date.now(), przez co adres różnił się przy każdym
    otwarciu i przeglądarka nigdy nie sięgała do pamięci podręcznej:
    145 kB pobierania i pełna kompilacja za każdym razem, zamiast raz. */
-var WERSJA = "2026-08-31-9";
+var WERSJA = "2026-08-31-10";
 
 fetch("./rejestr.jsx?v=" + WERSJA)
   .then(function (r) {

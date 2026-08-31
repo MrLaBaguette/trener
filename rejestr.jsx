@@ -365,6 +365,37 @@ function czytajRaport(txt) {
   return { rodzaj, data, grupa, pozycje, tresc: txt, braki: !rodzaj ? ["rodzaj badania"] : [] };
 }
 
+
+/* ── Czas lokalny ──────────────────────────────────────────
+   toISOString() zwraca UTC. W Polsce oznacza to godziny o 1–2 mniej,
+   a przy dacie potrafi cofnąć o cały dzień: lokalna północ to 22:00
+   dnia poprzedniego czasu uniwersalnego. Znaczniki zapisu trzymamy nadal
+   w UTC, bo służą do porównań między urządzeniami — ale wszystko, co
+   człowiek widzi albo z czego liczymy dni, idzie po czasie lokalnym. */
+function isoLokalne(dt) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+}
+
+function dzisIso() { return isoLokalne(new Date()); }
+
+/** Godzina lokalna z zapisanego znacznika UTC. */
+function godzinaZ(znacznik) {
+  if (!znacznik) return "";
+  const dt = new Date(znacznik);
+  if (Number.isNaN(dt.getTime())) return String(znacznik).slice(11, 16);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(dt.getHours())}:${p(dt.getMinutes())}`;
+}
+
+/** Data i godzina lokalna z zapisanego znacznika. */
+function chwilaZ(znacznik) {
+  if (!znacznik) return "";
+  const dt = new Date(znacznik);
+  if (Number.isNaN(dt.getTime())) return String(znacznik).slice(0, 16).replace("T", " ");
+  return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
+}
+
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
 const KLUCZ_USTAWIENIA = "rejestr:ustawienia";
@@ -447,7 +478,7 @@ async function ghPobierz(ust) {
 async function ghZapisz(ust, dane, sha) {
   const url = `https://api.github.com/repos/${ust.repo}/contents/${GH_PLIK}`;
   const body = {
-    message: "Rejestr — " + new Date().toISOString().slice(0, 16).replace("T", " "),
+    message: "Rejestr — " + chwilaZ(new Date().toISOString()),
     content: doBase64(JSON.stringify(dane, null, 2)),
   };
   if (sha) body.sha = sha;
@@ -898,7 +929,7 @@ function srednia(arr) {
 function ostatniaNiedziela() {
   const t = new Date();
   t.setDate(t.getDate() - t.getDay());
-  return t.toISOString().slice(0, 10);
+  return isoLokalne(t);
 }
 
 const DNI = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
@@ -947,7 +978,7 @@ export default function Mockup() {
   const [cheaty, setCheaty] = useState(0);
   const [notatka, setNotatka] = useState("");
   const [poza, setPoza] = useState(false);
-  const [wymForm, setWymForm] = useState(() => ({ date: new Date().toISOString().slice(0, 10), masa: "" }));
+  const [wymForm, setWymForm] = useState(() => ({ date: dzisIso(), masa: "" }));
   const [openWeek, setOpenWeek] = useState(null);
   const [filtr, setFiltr] = useState("wszystko");
   const [stage, setStage] = useState("form");
@@ -969,7 +1000,7 @@ export default function Mockup() {
   const [dataOd, setDataOd] = useState(() => {
     const t = new Date(ostatniaNiedziela() + "T00:00:00");
     t.setDate(t.getDate() - 6);
-    return t.toISOString().slice(0, 10);
+    return isoLokalne(t);
   });
 
   const dniOkresu = useMemo(() => {
@@ -1299,7 +1330,7 @@ export default function Mockup() {
     const start = d(dataWpisu) - (dniOkresu - 1) * 864e5;
     const nowe = { ...DZIENNE };
     for (let i = 0; i < dniOkresu; i++) {
-      const dzien = new Date(start + i * 864e5).toISOString().slice(0, 10);
+      const dzien = isoLokalne(new Date(start + i * 864e5));
       const wg = liczba(dniWaga[i]);
       const kc = liczba(dniKcal[i]);
       if (wg != null || kc != null)
@@ -1326,8 +1357,8 @@ export default function Mockup() {
     setImp(null); setImpW(null); setImpBlad(null);
     setStage("form");
     const n = new Date(d(dataWpisu) + 7 * 864e5);
-    setDataWpisu(n.toISOString().slice(0, 10));
-    setDataOd(new Date(d(dataWpisu) + 864e5).toISOString().slice(0, 10));
+    setDataWpisu(isoLokalne(n));
+    setDataOd(isoLokalne(new Date(d(dataWpisu) + 864e5)));
   }
 
   /* Usunięcie wpisu zabiera też komentarz — jeden tydzień to jeden rekord.
@@ -1473,9 +1504,9 @@ export default function Mockup() {
      psuje porównanie. Podgląd przed zapisem jest obowiązkowy. */
   const [raportPodglad, setRaportPodglad] = useState(null);
   const [testForm, setTestForm] = useState(() =>
-    ({ date: new Date().toISOString().slice(0, 10), hollow: "", pull: "", dip: "" }));
+    ({ date: dzisIso(), hollow: "", pull: "", dip: "" }));
   const [skladForm, setSkladForm] = useState(() =>
-    ({ date: new Date().toISOString().slice(0, 10), kind: "DEXA", weight: "", fat: "", lean: "" }));
+    ({ date: dzisIso(), kind: "DEXA", weight: "", fat: "", lean: "" }));
 
   /* Masa przy teście bierze się z ostatniego tygodnia — siła względem masy
      ciała jest tu jedyną wartościową liczbą, a wpisywanie jej ręcznie
@@ -1489,7 +1520,7 @@ export default function Mockup() {
       dip: parseInt(testForm.dip, 10) || 0,
       masa: pusty ? null : latest.weight,
     }].sort((a, b) => (a.date < b.date ? -1 : 1)));
-    setTestForm({ date: new Date().toISOString().slice(0, 10), hollow: "", pull: "", dip: "" });
+    setTestForm({ date: dzisIso(), hollow: "", pull: "", dip: "" });
   }
 
   function zapiszSklad() {
@@ -1498,7 +1529,7 @@ export default function Mockup() {
     setScans((prev) => [...prev.filter((x) => !(x.date === skladForm.date && x.kind === skladForm.kind)), {
       id: Date.now(), date: skladForm.date, kind: skladForm.kind, weight: w, fat: f, lean: l,
     }].sort((a, b) => (a.date < b.date ? -1 : 1)));
-    setSkladForm({ date: new Date().toISOString().slice(0, 10), kind: "DEXA", weight: "", fat: "", lean: "" });
+    setSkladForm({ date: dzisIso(), kind: "DEXA", weight: "", fat: "", lean: "" });
   }
 
   function wgrajRaport(plik) {
@@ -1513,7 +1544,7 @@ export default function Mockup() {
 
   function zatwierdzRaport() {
     const rp = raportPodglad;
-    const data = rp.data || new Date().toISOString().slice(0, 10);
+    const data = rp.data || dzisIso();
     if (rp.rodzaj === "krew") {
       /* Widok grupuje wyniki po pobraniu, nie po parametrze — porównanie
          majowego z grudniowym ma sens tylko w obrębie jednego dnia. */
@@ -1583,7 +1614,7 @@ export default function Mockup() {
   /* Tempo zmieniamy w fazie, w której jesteśmy dzisiaj — a nie globalnie,
      bo blok ciężki ma z założenia zero i nie wolno go ruszyć przypadkiem. */
   function ustawTempo(v) {
-    const dzis = new Date().toISOString().slice(0, 10);
+    const dzis = dzisIso();
     const fazy = ustawienia.fazy.map((f) =>
       (d(dzis) >= d(f.from) && d(dzis) < d(f.to)) ? { ...f, tempo: v } : f);
     setUstawienia({ ...ustawienia, fazy });
@@ -1620,7 +1651,7 @@ export default function Mockup() {
     });
     setWymiary((prev) => [...prev.filter((x) => x.date !== rek.date), rek]
       .sort((a, b) => (a.date < b.date ? -1 : 1)));
-    setWymForm({ date: new Date().toISOString().slice(0, 10), masa: "" });
+    setWymForm({ date: dzisIso(), masa: "" });
   }
 
   /* ── Odzyskiwanie danych ────────────────────────────────
@@ -1896,7 +1927,7 @@ ZASADY:
   }, [series, ustawienia]);
 
   const agenda = useMemo(() => {
-    const dzis = new Date().toISOString().slice(0, 10);
+    const dzis = dzisIso();
     const dni = (w) => Math.round((d(w.d) - d(dzis)) / 864e5);
     return (WYDARZENIA || [])
       .filter((w) => !w.zrobione && dni(w) <= AGENDA_HORYZONT)
@@ -1990,7 +2021,7 @@ ZASADY:
 
     /* Terminy z kalendarza. Bez nich trener doradza umówienie badania,
        które jest już umówione — i wygląda, jakby nie czytał. */
-    const dzis = new Date().toISOString().slice(0, 10);
+    const dzis = dzisIso();
     const blisko = (WYDARZENIA || [])
       .filter((w) => !w.zrobione && d(w.d) >= d(dzis) && d(w.d) <= d(dzis) + 28 * 864e5)
       .sort((a, b) => (a.d < b.d ? -1 : 1));
@@ -2012,7 +2043,7 @@ ZASADY:
   /* Sygnały liczy kod, nie model — reguły z ROADMAP muszą dawać ten sam
      wynik za każdym razem. Model dostaje gotowe flagi i tylko je opisuje. */
   const sygnaly = useMemo(
-    () => wykryjSygnaly(ENTRIES, ustawienia, WYDARZENIA, new Date().toISOString().slice(0, 10)),
+    () => wykryjSygnaly(ENTRIES, ustawienia, WYDARZENIA, dzisIso()),
     [ENTRIES, ustawienia, WYDARZENIA]
   );
 
@@ -2070,7 +2101,7 @@ ZASADY:
     const py = (w) => MT + ((yMax - w) / (yMax - yMin)) * (H - MT - MB);
     const planPts = [];
     for (let t = x0; t <= x1; t += 6048e5 * 2)
-      planPts.push(`${px(t)},${py(planAt(new Date(t).toISOString().slice(0, 10)))}`);
+      planPts.push(`${px(t)},${py(planAt(isoLokalne(new Date(t))))}`);
     return { W, H, ML, MR, MT, MB, px, py, planPts,
       actual: series.map((e) => ({ x: px(d(e.date)), y: py(e.weight) })),
       trend: series.map((e) => `${px(d(e.date))},${py(e.trend)}`) };
@@ -2121,11 +2152,11 @@ ZASADY:
 
       <div className="mockbar">
         <span>
-          {zapisano ? `zapisano ${String(zapisano).slice(11, 16)}` : "brak zapisu"}
+          {zapisano ? `zapisano ${godzinaZ(zapisano)}` : "brak zapisu"}
           {ustawienia.token && ustawienia.repo &&
             (sync.stan === "pracuje" ? " · wysyłam…"
               : sync.blad ? " · " + sync.blad
-              : zgodne ? (sync.kiedy ? ` · github ${String(sync.kiedy).slice(11, 16)}` : " · wysyła sama")
+              : zgodne ? (sync.kiedy ? ` · github ${godzinaZ(sync.kiedy)}` : " · wysyła sama")
               : " · automat wstrzymany")}
         </span>
         <button className="themebtn" onClick={() => setDark(!dark)}>
@@ -2257,11 +2288,11 @@ ZASADY:
                           poprawka daty po fakcie rozciągałaby okres. */
                        const roznica = d(nowa) - d(dataWpisu);
                        setDataWpisu(nowa);
-                       setDataOd(new Date(d(dataOd) + roznica).toISOString().slice(0, 10));
+                       setDataOd(isoLokalne(new Date(d(dataOd) + roznica)));
                      }} />
               <span className="dlbl">
                 {nazwaDnia(dataWpisu)}
-                {dataWpisu !== new Date().toISOString().slice(0, 10) &&
+                {dataWpisu !== dzisIso() &&
                   <em className="wstecz"> · wpis wsteczny</em>}
               </span>
             </label>
@@ -2593,7 +2624,7 @@ ZASADY:
                   wymiary: WYMIARY, spiro: SPIRO, krew: KREW, skany: SCANS, planKcal: ustawienia.planKcal,
                   ciezary, historia, zapisane,
                 });
-                pobierzJson(dane, `rejestr-${new Date().toISOString().slice(0, 10)}.json`);
+                pobierzJson(dane, `rejestr-${dzisIso()}.json`);
               }}>Eksportuj JSON</button>
             </div>
             <div className="exp-row">
@@ -2622,7 +2653,7 @@ ZASADY:
 
             {impStan && impStan.dane && (
               <div className="impbox">
-                <b>Znalazłem dane{impStan.zapis ? ` z ${String(impStan.zapis).slice(0, 16).replace("T", " ")}` : ""}:</b>
+                <b>Znalazłem dane{impStan.zapis ? ` z ${chwilaZ(impStan.zapis)}` : ""}:</b>
                 <table className="tbl imp-tbl">
                   <tbody>
                     <tr><td>Tygodnie</td><td className="n">{impStan.licz.tygodnie}</td>
@@ -2701,7 +2732,7 @@ ZASADY:
             </p>
             {sync.blad && <div className="impbox err"><b>Synchronizacja:</b> {sync.blad}</div>}
             {sync.stan === "gotowe" && !sync.blad &&
-              <p className="note">Ostatnio: {String(sync.kiedy).slice(0, 16).replace("T", " ")}</p>}
+              <p className="note">Ostatnio: {chwilaZ(sync.kiedy)}</p>}
 
           </div>
         )}
@@ -3715,11 +3746,11 @@ ZASADY:
       <footer className="foot">
         <span>
           {zapisBlad ? zapisBlad
-            : zapisano ? `Zapisano lokalnie ${String(zapisano).slice(11, 16)}`
+            : zapisano ? `Zapisano lokalnie ${godzinaZ(zapisano)}`
             : "Dane w tej przeglądarce"}
           {sync.stan === "pracuje" && " · wysyłam…"}
           {sync.kiedy && sync.stan === "gotowe" && !sync.blad &&
-            ` · GitHub ${String(sync.kiedy).slice(11, 16)}`}
+            ` · GitHub ${godzinaZ(sync.kiedy)}`}
           {sync.blad && " · synchronizacja: " + sync.blad}
           {ustawienia.token && ustawienia.repo && !sync.blad &&
             (zgodne ? " · wysyła sama" : " · automat wstrzymany")}
