@@ -1,6 +1,6 @@
 /* Pamięć podręczna aplikacji. Podbij CACHE po każdej podmianie rejestr.jsx —
    inaczej telefon będzie serwował starą wersję mimo wgrania nowej. */
-const CACHE = "rejestr-2026-08-31-2";
+const CACHE = "rejestr-2026-08-31-3";
 const PLIKI = [
   "./index.html",
   "./rejestr.jsx",

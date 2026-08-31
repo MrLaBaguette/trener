@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 
 /* ══════════════════════════════════════════════════════════
-   MOCK-UP — dane przykładowe, wpisane na sztywno.
-   Służy wyłącznie do oceny układu i zakresu informacji.
+   REJESTR PROJEKTU — aplikacja właściwa.
+   Zamykanie tygodnia i pamiętanie, co zadziałało.
    ══════════════════════════════════════════════════════════ */
 
 let MILESTONES = [
@@ -803,7 +803,7 @@ function siatka(rok, mies) {
 
 const SILA = ["regres", "lekki regres", "stagnacja", "lekki progres", "progres"];
 
-/* ── dane przykładowe ─────────────────────────────────────── */
+/* ── ziarno stanu przy pierwszym uruchomieniu ─────────────── */
 const ENTRIES_INIT = [];
 
 const COMMENTS_INIT = {};
@@ -979,14 +979,19 @@ export default function Mockup() {
   const pierwszyZapis = useRef(true);
 
   useEffect(() => {
+    /* Pierwsze uruchomienie to stan właśnie wczytany z pamięci, nie zmiana.
+       Zapis w tym momencie odświeżałby znacznik czasu i urządzenie zawsze
+       wyglądałoby na nowsze od repozytorium — przez co nigdy nie wiedziałoby,
+       że powinno pobrać dane z drugiego sprzętu. */
+    if (pierwszyZapis.current) {
+      pierwszyZapis.current = false;
+      setZapisano((odczytaj(KLUCZ, {}) || {}).zapis || null);
+      return;
+    }
     const teraz = new Date().toISOString();
     const ok = zapisz(KLUCZ, { schema: SCHEMA, zapis: teraz, dane: stanDoZapisu });
     setZapisBlad(ok ? null : "Przeglądarka nie pozwala zapisywać danych. Wyjdź z trybu prywatnego albo zezwól na pamięć lokalną — inaczej nic się nie zachowa.");
-    if (ok) setZapisano(teraz);
-    /* Pierwsze uruchomienie efektu to tylko zapis stanu wczytanego z pamięci,
-       nie zmiana wprowadzona przez człowieka — nie ma czego wysyłać. */
-    if (pierwszyZapis.current) { pierwszyZapis.current = false; return; }
-    if (ok) wyslijWTle();
+    if (ok) { setZapisano(teraz); wyslijWTle(); }
   }, [stanDoZapisu]);
 
   useEffect(() => { zapisz(KLUCZ_USTAWIENIA, ustawienia); }, [ustawienia]);
@@ -1127,12 +1132,45 @@ export default function Mockup() {
   const [zgodne, setZgodne] = useState(false);
   const wyslijPozniej = useRef(null);
 
+  const czeka = useRef(false);
+
   function wyslijWTle() {
     if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
     if (!zgodne) return;
+    czeka.current = true;
     clearTimeout(wyslijPozniej.current);
-    wyslijPozniej.current = setTimeout(() => synchronizuj("wyslij", true), 3000);
+    wyslijPozniej.current = setTimeout(() => {
+      czeka.current = false;
+      synchronizuj("wyslij", true);
+    }, 2000);
   }
+
+  /* Odświeżenie albo zamknięcie karty w oknie oczekiwania ucinało wysyłkę.
+     Przy wyjściu domykamy ją natychmiast, bez czekania na odpowiedź. */
+  useEffect(() => {
+    const domknij = () => {
+      if (!czeka.current) return;
+      clearTimeout(wyslijPozniej.current);
+      czeka.current = false;
+      try {
+        fetch(`https://api.github.com/repos/${ustawienia.repo}/contents/${GH_PLIK}`, {
+          method: "PUT", keepalive: true,
+          headers: { ...ghNaglowki(ustawienia.token), "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: "Rejestr — zamknięcie karty",
+            content: doBase64(JSON.stringify({ schema: SCHEMA, zapis: new Date().toISOString(), dane: stanDoZapisu }, null, 2)),
+            sha: sync.sha || undefined,
+          }),
+        });
+      } catch (e) { /* przy zamykaniu nie ma komu pokazać błędu */ }
+    };
+    window.addEventListener("pagehide", domknij);
+    window.addEventListener("beforeunload", domknij);
+    return () => {
+      window.removeEventListener("pagehide", domknij);
+      window.removeEventListener("beforeunload", domknij);
+    };
+  }, [stanDoZapisu, ustawienia, sync.sha]);
 
   /* ── Zapis tygodnia ─────────────────────────────────────
      Wpis z tą samą datą nadpisuje poprzedni zamiast tworzyć duplikat —
@@ -1942,7 +1980,14 @@ ZASADY:
       )}
 
       <div className="mockbar">
-        <span>Mock-up · dane przykładowe</span>
+        <span>
+          {zapisano ? `zapisano ${String(zapisano).slice(11, 16)}` : "brak zapisu"}
+          {ustawienia.token && ustawienia.repo &&
+            (sync.stan === "pracuje" ? " · wysyłam…"
+              : sync.blad ? " · " + sync.blad
+              : zgodne ? (sync.kiedy ? ` · github ${String(sync.kiedy).slice(11, 16)}` : " · wysyła sama")
+              : " · automat wstrzymany")}
+        </span>
         <button className="themebtn" onClick={() => setDark(!dark)}>
           {dark ? "tryb jasny" : "tryb ciemny"}
         </button>
