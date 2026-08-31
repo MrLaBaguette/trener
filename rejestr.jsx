@@ -707,17 +707,20 @@ const SEKCJE = [
     { k: "staty", l: "Postęp" },
     { k: "pomiary", l: "Pomiary" },
   ]},
+  { id: "system", n: "Ustawienia", pod: [
+    { k: "ustawienia", l: "Ustawienia" },
+    { k: "dane", l: "Dane i eksport" },
+  ]},
 ];
 
 const AGENDA_HORYZONT = 30;
-const AGENDA = [
-  { id: 1, co: "Kontrola snu → decyzja o tempie deficytu", kiedy: "zaległe od 3 dni", stan: "zalegle",
-    czemu: "od tego zależy, czy można przyspieszyć" },
-  { id: 2, co: "Pomiar wymiarów ciała", kiedy: "1 listopada", stan: "teraz",
-    czemu: "co miesiąc · obwody schodzą uczciwiej niż waga" },
-  { id: 3, co: "Test sprawnościowy #3 + przegląd cyklu", kiedy: "za 3 tygodnie", stan: "wkrotce",
-    czemu: "co 8 tygodni · hollow, podciągnięcia, dipy" },
-];
+const KATEGORIA = {
+  pomiar: "co miesiąc · obwody schodzą uczciwiej niż waga",
+  test: "siła względem masy ciała",
+  badanie: "wymaga umówienia",
+  faza: "zmiana w roadmapie",
+  wyjazd: "kalorie na utrzymaniu",
+};
 
 /* Wydarzenia projektu. typ steruje kolorem: pomiar, test, badanie, faza, wyjazd. */
 const WYDARZENIA_INIT = [
@@ -931,8 +934,6 @@ export default function Mockup() {
   const [openWaga, setOpenWaga] = useState(false);
   const [openKcal, setOpenKcal] = useState(false);
   const [dark, setDark] = useState(() => !!odczytaj(KLUCZ_USTAWIENIA, {}).ciemny);
-  const [expOpen, setExpOpen] = useState(false);
-  const [setOpen, setSetOpen] = useState(false);
   const [odblokowany, setOdblokowany] = useState(false);
   const [pinWpis, setPinWpis] = useState("");
   const [ev, setEv] = useState(null);
@@ -1824,6 +1825,25 @@ ZASADY:
       cheats: win.reduce((s, e) => s + e.cheats, 0), n: win.length };
   }, [series, ustawienia]);
 
+  const agenda = useMemo(() => {
+    const dzis = new Date().toISOString().slice(0, 10);
+    const dni = (w) => Math.round((d(w.d) - d(dzis)) / 864e5);
+    return (WYDARZENIA || [])
+      .filter((w) => !w.zrobione && dni(w) <= AGENDA_HORYZONT)
+      .sort((a, b) => (a.d < b.d ? -1 : 1))
+      .map((w) => {
+        const n = dni(w);
+        return {
+          id: w.id, co: w.n, czemu: w.po || KATEGORIA[w.t] || "",
+          stan: n < 0 ? "zalegle" : n <= 3 ? "teraz" : "wkrotce",
+          kiedy: n < 0 ? `zaległe od ${-n} dni` : n === 0 ? "dziś"
+            : n === 1 ? "jutro" : n <= 13 ? `za ${n} dni`
+            : `za ${Math.round(n / 7)} tyg.`,
+          zrodlo: w,
+        };
+      });
+  }, [WYDARZENIA]);
+
   /* ── Cel makro na dziś ──────────────────────────────────
      Białko i tłuszcz są podłogami z ZYWIENIE.md, nie procentami z kalorii —
      przy spadającej wadze procenty zjechałyby razem z nią, a te dwie
@@ -2115,8 +2135,14 @@ ZASADY:
             <span className="tiny-note">z kalendarza projektu</span>
           </div>
           <ul className="ag-list">
-            {AGENDA.map((a) => (
-              <li key={a.id} className={"ag " + a.stan}>
+            {agenda.length === 0 && (
+              <li className="ag wkrotce"><span className="ag-dot" />
+                <span className="ag-body"><b>Nic w najbliższych {AGENDA_HORYZONT} dniach</b>
+                <em>terminy dodajesz w zakładce Kalendarz</em></span></li>
+            )}
+            {agenda.map((a) => (
+              <li key={a.id} className={"ag " + a.stan}
+                  onClick={() => { setTab("kalendarz"); otworzEv(a.zrodlo); }}>
                 <span className="ag-dot" />
                 <span className="ag-body">
                   <b>{a.co}</b>
@@ -2444,6 +2470,169 @@ ZASADY:
       )}
 
 
+      {(tab === "dane" || tab === "ustawienia") && (
+        <>
+      <section className="panel exp open">
+        <div className="exp-tog statyczny">
+                    <span>Dane i eksport</span>
+          <span className="tiny-note">schemat v{SCHEMA}</span>
+        </div>
+
+        {tab === "dane" && (
+          <div className="exp-body">
+            <div className="exp-row">
+              <div className="exp-txt">
+                <b>Eksport pełnego rejestru</b>
+                <em>Wszystkie tygodnie, komentarze trenera, pomiary i kamienie milowe w jednym pliku JSON.
+                  Format przenośny — przyszła wersja aplikacji zaimportuje go bez przepisywania.</em>
+              </div>
+              <button className="primary" onClick={() => {
+                const dane = zbierzDane({
+                  entries: ENTRIES, komentarze: COMMENTS, testy: TESTY, cardio: CARDIO,
+                  wymiary: WYMIARY, spiro: SPIRO, krew: KREW, skany: SCANS, planKcal: ustawienia.planKcal,
+                  ciezary, historia, zapisane,
+                });
+                pobierzJson(dane, `rejestr-${new Date().toISOString().slice(0, 10)}.json`);
+              }}>Eksportuj JSON</button>
+            </div>
+            <div className="exp-row">
+              <div className="exp-txt">
+                <b>Odzyskanie danych</b>
+                <em>Z pliku eksportu albo z historii repozytorium. Podgląd przed zapisem — nic nie wchodzi po cichu.</em>
+              </div>
+              <label className="ghost imp-lbl">Wybierz plik
+                <input type="file" className="imp-in"
+                       onChange={(e) => { if (e.target.files[0]) importujJSON(e.target.files[0]); e.target.value = ""; }} />
+              </label>
+            </div>
+
+            <p className="note">Jeśli wybranie pliku nie działa — bo ma złe rozszerzenie albo kopiowałeś treść z GitHuba — wklej ją tutaj. To ta sama droga, tylko z pominięciem pliku.</p>
+            <textarea className="dedit" rows={4} value={wklejka}
+                      placeholder='Wklej całość, od { do }'
+                      onChange={(e) => setWklejka(e.target.value)} />
+            <div className="imp-akcje">
+              <button className="ghost" disabled={!wklejka.trim()}
+                      onClick={() => przygotujImport(wklejka, "wklejone")}>Sprawdź wklejone</button>
+            </div>
+
+            {impStan && impStan.blad && (
+              <div className="impbox err"><b>Nie wczytałem.</b> {impStan.blad}</div>
+            )}
+
+            {impStan && impStan.dane && (
+              <div className="impbox">
+                <b>Znalazłem dane{impStan.zapis ? ` z ${String(impStan.zapis).slice(0, 16).replace("T", " ")}` : ""}:</b>
+                <table className="tbl imp-tbl">
+                  <tbody>
+                    <tr><td>Tygodnie</td><td className="n">{impStan.licz.tygodnie}</td>
+                        <td>Wymiary</td><td className="n">{impStan.licz.wymiary}</td></tr>
+                    <tr><td>Dania</td><td className="n">{impStan.licz.dania}</td>
+                        <td>Skany</td><td className="n">{impStan.licz.skany}</td></tr>
+                    <tr><td>Obliczenia makro</td><td className="n">{impStan.licz.makro}</td>
+                        <td>Ćwiczenia z obciążeniem</td><td className="n">{impStan.licz.cwiczenia}</td></tr>
+                  </tbody>
+                </table>
+                <p className="note">Zastąpi to, co jest teraz w tej przeglądarce. Porównaj liczby z tym, co pamiętasz — jeśli któraś jest niższa, niż powinna, weź wcześniejszy zapis z historii repozytorium.</p>
+                <div className="imp-akcje">
+                  <button className="primary" onClick={zatwierdzImport}>Wczytaj te dane</button>
+                  <button className="ghost" onClick={() => setImpStan(null)}>Odrzuć</button>
+                </div>
+              </div>
+            )}
+            <p className="note">Eksport bez importu nie jest kopią zapasową. Trzymaj oba pod ręką — albo włącz synchronizację niżej, wtedy kopia robi się sama.</p>
+          </div>
+        )}
+      </section>
+
+      {/* ── Ustawienia ──────────────────────────────────────
+          Wszystko, co dotąd wymagało edycji kodu: klucz, synchronizacja,
+          tempo deficytu i granice faz. ROADMAP przewiduje zmianę tempa
+          na przeglądzie — musi być dostępna stąd. */}
+      <section className="panel exp open">
+        <div className="exp-tog statyczny">
+                    <span>Ustawienia</span>
+          <span className="tiny-note">
+            {ustawienia.klucz ? "klucz ✓" : "brak klucza"} · {ustawienia.token ? "sync ✓" : "sync off"}
+          </span>
+        </div>
+
+        {tab === "ustawienia" && (
+          <div className="exp-body">
+            <h4 className="ust-h">Klucz API</h4>
+            <p className="note">Potrzebny do kalkulatora makro. Zapisuje się wyłącznie w tej przeglądarce — nigdy w repozytorium z kodem.</p>
+            <input className="ust-in" type="password" placeholder="sk-ant-…"
+                   value={ustawienia.klucz}
+                   onChange={(e) => setUstawienia({ ...ustawienia, klucz: e.target.value })} />
+
+            <h4 className="ust-h">Synchronizacja między urządzeniami</h4>
+            <p className="note">Osobne, <b>prywatne</b> repozytorium wyłącznie na dane — nie to samo, w którym leży kod. Git trzyma historię każdego zapisu, więc pomyłkowe nadpisanie da się cofnąć.</p>
+            <div className="ust-para">
+              <label>Repozytorium
+                <input className="ust-in" placeholder="uzytkownik/rejestr-dane"
+                       value={ustawienia.repo}
+                       onChange={(e) => setUstawienia({ ...ustawienia, repo: e.target.value.trim() })} /></label>
+              <label>Token dostępu
+                <input className="ust-in" type="password" placeholder="github_pat_…"
+                       value={ustawienia.token}
+                       onChange={(e) => setUstawienia({ ...ustawienia, token: e.target.value.trim() })} /></label>
+            </div>
+            <div className="imp-akcje">
+              <button className="primary" onClick={() => synchronizuj("wyslij")}
+                      disabled={sync.stan === "pracuje"}>Wyślij stąd</button>
+              <button className="ghost" onClick={() => synchronizuj("pobierz")}
+                      disabled={sync.stan === "pracuje"}>Pobierz zdalne</button>
+              {!zgodne && (
+                <button className="ghost" onClick={() => { setSync((p) => ({ ...p, blad: null })); sprawdzZdalne(); }}>
+                  Sprawdź ponownie</button>
+              )}
+              <label className="wyklucz-inline">
+                <input type="checkbox" checked={ustawienia.autosync}
+                       onChange={(e) => setUstawienia({ ...ustawienia, autosync: e.target.checked })} />
+                pobieraj przy starcie
+              </label>
+            </div>
+            {sync.stan === "pracuje" && <p className="note">Łączę z GitHubem…</p>}
+            <p className="note">
+              Automat: <b>{zgodne ? "wysyła po każdej zmianie" : "wstrzymany"}</b>.
+              {" "}Wstrzymuje się, gdy w repozytorium pojawią się dane, których to urządzenie nie zna. Wraca po pobraniu zdalnych albo po świadomym wysłaniu stąd.
+            </p>
+            {sync.blad && <div className="impbox err"><b>Synchronizacja:</b> {sync.blad}</div>}
+            {sync.stan === "gotowe" && !sync.blad &&
+              <p className="note">Ostatnio: {String(sync.kiedy).slice(0, 16).replace("T", " ")}</p>}
+
+            <h4 className="ust-h">Plan i tempo</h4>
+            <p className="note">Reguła z ROADMAP: dwa tygodnie regresu siły z rzędu przy komplecie sesji oznaczają powrót do 0,28 — niezależnie od tego, co pokazuje waga.</p>
+            <label>Kalorie planowane
+              <input className="ust-in short" inputMode="numeric" value={ustawienia.planKcal}
+                     onChange={(e) => setUstawienia({ ...ustawienia, planKcal: parseInt(e.target.value, 10) || 0 })} /></label>
+            <table className="tbl">
+              <thead><tr><th>Faza</th><th>Od</th><th>Do</th><th>kg/tydz.</th></tr></thead>
+              <tbody>
+                {ustawienia.fazy.map((f, i) => (
+                  <tr key={i}>
+                    <td>{f.label}</td>
+                    <td><input className="ust-in tiny" type="date" value={f.from}
+                        onChange={(e) => zmienFaze(i, "from", e.target.value)} /></td>
+                    <td><input className="ust-in tiny" type="date" value={f.to}
+                        onChange={(e) => zmienFaze(i, "to", e.target.value)} /></td>
+                    <td className="n"><input className="ust-in tiny" inputMode="decimal" value={f.tempo}
+                        onChange={(e) => zmienFaze(i, "tempo", parseFloat(String(e.target.value).replace(",", ".")) || 0)} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h4 className="ust-h">Blokada</h4>
+            <p className="note">Cztery cyfry przy otwarciu. Nie chroni pliku na dysku — chroni przed zajrzeniem w odblokowany telefon leżący na ławce.</p>
+            <input className="ust-in short" inputMode="numeric" maxLength={4} placeholder="bez blokady"
+                   value={ustawienia.pin}
+                   onChange={(e) => setUstawienia({ ...ustawienia, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
+          </div>
+        )}
+      </section>
+        </>
+      )}
+
       {/* ── PLAN ── */}
       {tab === "plan" && (() => {
         const cykl = CYKLE.find((c) => c.id === cyklId) || CYKLE[0];
@@ -2762,7 +2951,7 @@ ZASADY:
 
           <section className="panel">
             <div className="bal-head"><span>Bilans energetyczny</span>
-              <button className="ghost tiny" onClick={() => { setTab("wpis"); setSetOpen(true); }}>plan: {ustawienia.planKcal} kcal/d · zmień</button></div>
+              <button className="ghost tiny" onClick={() => setTab("ustawienia")}>plan: {ustawienia.planKcal} kcal/d · zmień</button></div>
             <div className="ledger">
               <div className="col"><span className="lbl">Zjedzone</span>
                 <span className="mid">{Math.round(balance.intake)}<em>kcal/d</em></span>
@@ -3377,166 +3566,6 @@ ZASADY:
         </section>
       )}
 
-      <section className={"panel exp" + (expOpen ? " open" : "")}>
-        <button className="exp-tog" onClick={() => setExpOpen(!expOpen)}>
-          <span className="exp-caret">{expOpen ? "▾" : "▸"}</span>
-          <span>Dane i eksport</span>
-          <span className="tiny-note">schemat v{SCHEMA}</span>
-        </button>
-
-        {expOpen && (
-          <div className="exp-body">
-            <div className="exp-row">
-              <div className="exp-txt">
-                <b>Eksport pełnego rejestru</b>
-                <em>Wszystkie tygodnie, komentarze trenera, pomiary i kamienie milowe w jednym pliku JSON.
-                  Format przenośny — przyszła wersja aplikacji zaimportuje go bez przepisywania.</em>
-              </div>
-              <button className="primary" onClick={() => {
-                const dane = zbierzDane({
-                  entries: ENTRIES, komentarze: COMMENTS, testy: TESTY, cardio: CARDIO,
-                  wymiary: WYMIARY, spiro: SPIRO, krew: KREW, skany: SCANS, planKcal: ustawienia.planKcal,
-                  ciezary, historia, zapisane,
-                });
-                pobierzJson(dane, `rejestr-${new Date().toISOString().slice(0, 10)}.json`);
-              }}>Eksportuj JSON</button>
-            </div>
-            <div className="exp-row">
-              <div className="exp-txt">
-                <b>Odzyskanie danych</b>
-                <em>Z pliku eksportu albo z historii repozytorium. Podgląd przed zapisem — nic nie wchodzi po cichu.</em>
-              </div>
-              <label className="ghost imp-lbl">Wybierz plik
-                <input type="file" className="imp-in"
-                       onChange={(e) => { if (e.target.files[0]) importujJSON(e.target.files[0]); e.target.value = ""; }} />
-              </label>
-            </div>
-
-            <p className="note">Jeśli wybranie pliku nie działa — bo ma złe rozszerzenie albo kopiowałeś treść z GitHuba — wklej ją tutaj. To ta sama droga, tylko z pominięciem pliku.</p>
-            <textarea className="dedit" rows={4} value={wklejka}
-                      placeholder='Wklej całość, od { do }'
-                      onChange={(e) => setWklejka(e.target.value)} />
-            <div className="imp-akcje">
-              <button className="ghost" disabled={!wklejka.trim()}
-                      onClick={() => przygotujImport(wklejka, "wklejone")}>Sprawdź wklejone</button>
-            </div>
-
-            {impStan && impStan.blad && (
-              <div className="impbox err"><b>Nie wczytałem.</b> {impStan.blad}</div>
-            )}
-
-            {impStan && impStan.dane && (
-              <div className="impbox">
-                <b>Znalazłem dane{impStan.zapis ? ` z ${String(impStan.zapis).slice(0, 16).replace("T", " ")}` : ""}:</b>
-                <table className="tbl imp-tbl">
-                  <tbody>
-                    <tr><td>Tygodnie</td><td className="n">{impStan.licz.tygodnie}</td>
-                        <td>Wymiary</td><td className="n">{impStan.licz.wymiary}</td></tr>
-                    <tr><td>Dania</td><td className="n">{impStan.licz.dania}</td>
-                        <td>Skany</td><td className="n">{impStan.licz.skany}</td></tr>
-                    <tr><td>Obliczenia makro</td><td className="n">{impStan.licz.makro}</td>
-                        <td>Ćwiczenia z obciążeniem</td><td className="n">{impStan.licz.cwiczenia}</td></tr>
-                  </tbody>
-                </table>
-                <p className="note">Zastąpi to, co jest teraz w tej przeglądarce. Porównaj liczby z tym, co pamiętasz — jeśli któraś jest niższa, niż powinna, weź wcześniejszy zapis z historii repozytorium.</p>
-                <div className="imp-akcje">
-                  <button className="primary" onClick={zatwierdzImport}>Wczytaj te dane</button>
-                  <button className="ghost" onClick={() => setImpStan(null)}>Odrzuć</button>
-                </div>
-              </div>
-            )}
-            <p className="note">Eksport bez importu nie jest kopią zapasową. Trzymaj oba pod ręką — albo włącz synchronizację niżej, wtedy kopia robi się sama.</p>
-          </div>
-        )}
-      </section>
-
-      {/* ── Ustawienia ──────────────────────────────────────
-          Wszystko, co dotąd wymagało edycji kodu: klucz, synchronizacja,
-          tempo deficytu i granice faz. ROADMAP przewiduje zmianę tempa
-          na przeglądzie — musi być dostępna stąd. */}
-      <section className={"panel exp" + (setOpen ? " open" : "")}>
-        <button className="exp-tog" onClick={() => setSetOpen(!setOpen)}>
-          <span className="exp-caret">{setOpen ? "▾" : "▸"}</span>
-          <span>Ustawienia</span>
-          <span className="tiny-note">
-            {ustawienia.klucz ? "klucz ✓" : "brak klucza"} · {ustawienia.token ? "sync ✓" : "sync off"}
-          </span>
-        </button>
-
-        {setOpen && (
-          <div className="exp-body">
-            <h4 className="ust-h">Klucz API</h4>
-            <p className="note">Potrzebny do kalkulatora makro. Zapisuje się wyłącznie w tej przeglądarce — nigdy w repozytorium z kodem.</p>
-            <input className="ust-in" type="password" placeholder="sk-ant-…"
-                   value={ustawienia.klucz}
-                   onChange={(e) => setUstawienia({ ...ustawienia, klucz: e.target.value })} />
-
-            <h4 className="ust-h">Synchronizacja między urządzeniami</h4>
-            <p className="note">Osobne, <b>prywatne</b> repozytorium wyłącznie na dane — nie to samo, w którym leży kod. Git trzyma historię każdego zapisu, więc pomyłkowe nadpisanie da się cofnąć.</p>
-            <div className="ust-para">
-              <label>Repozytorium
-                <input className="ust-in" placeholder="uzytkownik/rejestr-dane"
-                       value={ustawienia.repo}
-                       onChange={(e) => setUstawienia({ ...ustawienia, repo: e.target.value.trim() })} /></label>
-              <label>Token dostępu
-                <input className="ust-in" type="password" placeholder="github_pat_…"
-                       value={ustawienia.token}
-                       onChange={(e) => setUstawienia({ ...ustawienia, token: e.target.value.trim() })} /></label>
-            </div>
-            <div className="imp-akcje">
-              <button className="primary" onClick={() => synchronizuj("wyslij")}
-                      disabled={sync.stan === "pracuje"}>Wyślij stąd</button>
-              <button className="ghost" onClick={() => synchronizuj("pobierz")}
-                      disabled={sync.stan === "pracuje"}>Pobierz zdalne</button>
-              {!zgodne && (
-                <button className="ghost" onClick={() => { setSync((p) => ({ ...p, blad: null })); sprawdzZdalne(); }}>
-                  Sprawdź ponownie</button>
-              )}
-              <label className="wyklucz-inline">
-                <input type="checkbox" checked={ustawienia.autosync}
-                       onChange={(e) => setUstawienia({ ...ustawienia, autosync: e.target.checked })} />
-                pobieraj przy starcie
-              </label>
-            </div>
-            {sync.stan === "pracuje" && <p className="note">Łączę z GitHubem…</p>}
-            <p className="note">
-              Automat: <b>{zgodne ? "wysyła po każdej zmianie" : "wstrzymany"}</b>.
-              {" "}Wstrzymuje się, gdy w repozytorium pojawią się dane, których to urządzenie nie zna. Wraca po pobraniu zdalnych albo po świadomym wysłaniu stąd.
-            </p>
-            {sync.blad && <div className="impbox err"><b>Synchronizacja:</b> {sync.blad}</div>}
-            {sync.stan === "gotowe" && !sync.blad &&
-              <p className="note">Ostatnio: {String(sync.kiedy).slice(0, 16).replace("T", " ")}</p>}
-
-            <h4 className="ust-h">Plan i tempo</h4>
-            <p className="note">Reguła z ROADMAP: dwa tygodnie regresu siły z rzędu przy komplecie sesji oznaczają powrót do 0,28 — niezależnie od tego, co pokazuje waga.</p>
-            <label>Kalorie planowane
-              <input className="ust-in short" inputMode="numeric" value={ustawienia.planKcal}
-                     onChange={(e) => setUstawienia({ ...ustawienia, planKcal: parseInt(e.target.value, 10) || 0 })} /></label>
-            <table className="tbl">
-              <thead><tr><th>Faza</th><th>Od</th><th>Do</th><th>kg/tydz.</th></tr></thead>
-              <tbody>
-                {ustawienia.fazy.map((f, i) => (
-                  <tr key={i}>
-                    <td>{f.label}</td>
-                    <td><input className="ust-in tiny" type="date" value={f.from}
-                        onChange={(e) => zmienFaze(i, "from", e.target.value)} /></td>
-                    <td><input className="ust-in tiny" type="date" value={f.to}
-                        onChange={(e) => zmienFaze(i, "to", e.target.value)} /></td>
-                    <td className="n"><input className="ust-in tiny" inputMode="decimal" value={f.tempo}
-                        onChange={(e) => zmienFaze(i, "tempo", parseFloat(String(e.target.value).replace(",", ".")) || 0)} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <h4 className="ust-h">Blokada</h4>
-            <p className="note">Cztery cyfry przy otwarciu. Nie chroni pliku na dysku — chroni przed zajrzeniem w odblokowany telefon leżący na ławce.</p>
-            <input className="ust-in short" inputMode="numeric" maxLength={4} placeholder="bez blokady"
-                   value={ustawienia.pin}
-                   onChange={(e) => setUstawienia({ ...ustawienia, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
-          </div>
-        )}
-      </section>
 
       <footer className="foot">
         <span>
@@ -4229,7 +4258,7 @@ const CSS = `
 .exp-txt em{font-style:normal;font-size:11.5px;color:var(--ink-2);line-height:1.45}
 .agenda{padding-bottom:14px}
 .ag-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
-.ag{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--hair)}
+.ag{cursor:pointer;display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--hair)}
 .ag:last-child{border-bottom:0}
 .ag-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--rule)}
 .ag.teraz .ag-dot{background:var(--actual)}
@@ -4505,6 +4534,35 @@ const CSS = `
 .pinbox b{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
 .pinbox em{font-size:12px;color:var(--bad,#B4453C);font-style:normal}
 @media(max-width:700px){ .ust-para{grid-template-columns:1fr} }
+
+/* ── zakładka Ustawienia ─────────────────────────────────── */
+.exp-tog.statyczny{cursor:default}
+.exp-tog.statyczny:hover{background:transparent}
+
+/* ── formularz na wąskim ekranie ─────────────────────────────
+   Etykieta na stałe 180 px zostawiała na telefonie kilkadziesiąt pikseli
+   na kontrolkę, przez co pięć przycisków łamało się na dwa rzędy. */
+@media(max-width:640px){
+  .frow{flex-direction:column;align-items:stretch;gap:8px;padding:14px 0}
+  .fkey{width:auto;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .fval{width:100%}
+  .fval input{width:100%}
+  .fval.kcal input{width:100%}
+  .pips,.scale{grid-auto-columns:minmax(0,1fr)}
+  .pip,.sc,.chip{height:42px}
+  .sc{font-size:8px}
+  .chips{grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .delta{align-self:flex-start}
+  .ledger.cztery .big{font-size:26px}
+  .head .eyebrow{font-size:10px}
+  .mockbar{font-size:10px;flex-wrap:wrap;gap:6px}
+  .tbl{font-size:11.5px}
+  .prow{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:400px){
+  .prow{grid-template-columns:1fr}
+  .chips{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 
 @media(max-width:700px){
   .kalk-grid{grid-template-columns:1fr}
