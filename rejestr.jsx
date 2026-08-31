@@ -2199,13 +2199,14 @@ ZASADY:
             )}
             {agenda.map((a) => (
               <li key={a.id} className={"ag " + a.stan}>
-                <button className="ag-check" title="Odhacz jako zrobione"
-                        onClick={() => odhaczEv(a.id, true)}>✓</button>
+                <span className={"ag-dot e-" + a.zrodlo.t} title={a.zrodlo.t} />
                 <span className="ag-body" onClick={() => { setTab("kalendarz"); otworzEv(a.zrodlo); }}>
                   <b>{a.co}</b>
                   <em>{a.czemu}</em>
                 </span>
                 <span className="ag-when">{a.kiedy}</span>
+                <button className="ag-check" title="Odhacz jako zrobione"
+                        onClick={() => odhaczEv(a.id, true)}>✓</button>
               </li>
             ))}
           </ul>
@@ -2545,13 +2546,12 @@ ZASADY:
 
       {(tab === "dane" || tab === "ustawienia" || tab === "aplikacja" || tab === "tempo") && (
         <>
+      {tab === "dane" && (
       <section className="panel exp open">
         <div className="exp-tog statyczny">
-                    <span>Dane i eksport</span>
-          
+          <span>Dane i eksport</span>
         </div>
-
-        {tab === "dane" && (
+        {true && (
           <div className="exp-body">
             <div className="exp-row">
               <div className="exp-txt">
@@ -2612,15 +2612,17 @@ ZASADY:
                 </div>
               </div>
             )}
-            <p className="note">Eksport bez importu nie jest kopią zapasową. Trzymaj oba pod ręką — albo włącz synchronizację niżej, wtedy kopia robi się sama.</p>
+            <p className="note">Eksport bez importu nie jest kopią zapasową. Trzymaj oba pod ręką — albo włącz synchronizację w zakładce obok, wtedy kopia robi się sama.</p>
           </div>
         )}
       </section>
+      )}
 
       {/* ── Ustawienia ──────────────────────────────────────
           Wszystko, co dotąd wymagało edycji kodu: klucz, synchronizacja,
           tempo deficytu i granice faz. ROADMAP przewiduje zmianę tempa
           na przeglądzie — musi być dostępna stąd. */}
+      {tab === "ustawienia" && (
       <section className="panel exp open">
         <div className="exp-tog statyczny">
           <span>Synchronizacja i API</span>
@@ -2675,8 +2677,12 @@ ZASADY:
 
           </div>
         )}
+      </section>
+      )}
 
-        {tab === "aplikacja" && (
+      {tab === "aplikacja" && (
+        <section className="panel exp open">
+          <div className="exp-tog statyczny"><span>Aplikacja</span></div>
           <div className="exp-body">
             <h4 className="ust-h">Blokada</h4>
             <p className="note">Cztery cyfry przy otwarciu. Nie chroni pliku na dysku — chroni przed zajrzeniem w odblokowany telefon leżący na ławce.</p>
@@ -2691,12 +2697,6 @@ ZASADY:
                 {dark ? "Przełącz na jasny" : "Przełącz na ciemny"}</button>
             </div>
           </div>
-        )}
-      </section>
-
-      {tab === "aplikacja" && (
-        <section className="panel exp open">
-          <div className="exp-tog statyczny"><span>Aplikacja</span></div>
         </section>
       )}
         </>
@@ -4378,9 +4378,17 @@ const CSS = `
 .ag-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .ag{cursor:pointer;display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--hair)}
 .ag:last-child{border-bottom:0}
-.ag-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--rule)}
-.ag.teraz .ag-dot{background:var(--actual)}
-.ag.zalegle .ag-dot{background:var(--warn)}
+.ag-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--rule);
+  border:0;padding:0}
+/* Kolor niesie kategoria wydarzenia, nie pilność — pilność widać po terminie
+   po prawej, a kategoria mówi, czy to pomiar do zrobienia w domu, czy badanie
+   wymagające umówienia. */
+.ag-dot.e-pomiar{background:var(--plan)}
+.ag-dot.e-test{background:var(--actual)}
+.ag-dot.e-badanie{background:var(--good)}
+.ag-dot.e-faza{background:var(--warn)}
+.ag-dot.e-wyjazd{background:var(--ink-2)}
+.ag-check{flex:none;margin-left:10px}
 .ag.wkrotce .ag-dot{background:var(--plan)}
 .ag-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .ag-body b{font-size:13px;font-weight:500}
