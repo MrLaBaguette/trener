@@ -116,6 +116,9 @@ REGUŁY, KTÓRE MUSISZ RESPEKTOWAĆ
 CZEGO NIE WOLNO CI ROBIĆ
 - Nie zmyślaj szczegółów, których nie ma w raporcie. Nie masz logu sesji ani
   obciążeń — nie pisz, jak wypadły kolejne serie, bo tego nie widzisz.
+- Raport podaje długość ocenianego okresu. Jeśli to nie jest siedem dni,
+  odnieś się do rzeczywistej liczby dni i nie mów „tydzień" o pięciu dniach.
+  Tempo jest już przeliczone na tydzień — nie przeliczaj go ponownie.
 - Sen jest podany jako ocena jakości w skali 1–5, NIE jako liczba godzin.
   Nigdy nie przeliczaj tej cyfry na godziny.
 - Aktywności są podane jako liczba tygodni, w których wystąpiły, NIE jako
@@ -698,6 +701,7 @@ const SEKCJE = [
   { id: "plan", n: "Plan", pod: [
     { k: "plan", l: "Plan treningowy" },
     { k: "kalendarz", l: "Kalendarz" },
+    { k: "tempo", l: "Plan i tempo" },
   ]},
   { id: "kuchnia", n: "Kuchnia", pod: [
     { k: "kuchnia", l: "Cookbook" },
@@ -708,7 +712,8 @@ const SEKCJE = [
     { k: "pomiary", l: "Pomiary" },
   ]},
   { id: "system", n: "Ustawienia", pod: [
-    { k: "ustawienia", l: "Ustawienia" },
+    { k: "ustawienia", l: "Synchronizacja i API" },
+    { k: "aplikacja", l: "Aplikacja" },
     { k: "dane", l: "Dane i eksport" },
   ]},
 ];
@@ -929,8 +934,6 @@ export default function Mockup() {
   const [podglad, setPodglad] = useState(false);
   const [waga, setWaga] = useState("");
   const [kcal, setKcal] = useState("");
-  const [dniWaga, setDniWaga] = useState(["","","","","","",""]);
-  const [dniKcal, setDniKcal] = useState(["","","","","","",""]);
   const [openWaga, setOpenWaga] = useState(false);
   const [openKcal, setOpenKcal] = useState(false);
   const [dark, setDark] = useState(() => !!odczytaj(KLUCZ_USTAWIENIA, {}).ciemny);
@@ -938,6 +941,35 @@ export default function Mockup() {
   const [pinWpis, setPinWpis] = useState("");
   const [ev, setEv] = useState(null);
   const [dataWpisu, setDataWpisu] = useState(() => ostatniaNiedziela());
+  /* Okres domyślnie siedmiodniowy, bo tak wygląda zwykły tydzień. Ale bywa
+     krócej — po chorobie albo przy przesunięciu wpisu — i dłużej, po wyjeździe.
+     Tempo i tak liczymy na tydzień, więc długość nie psuje porównań. */
+  const [dataOd, setDataOd] = useState(() => {
+    const t = new Date(ostatniaNiedziela() + "T00:00:00");
+    t.setDate(t.getDate() - 6);
+    return t.toISOString().slice(0, 10);
+  });
+
+  const dniOkresu = useMemo(() => {
+    const n = Math.round((d(dataWpisu) - d(dataOd)) / 864e5) + 1;
+    return Math.max(3, Math.min(21, Number.isFinite(n) ? n : 7));
+  }, [dataWpisu, dataOd]);
+
+  const [dniWaga, setDniWaga] = useState(() => Array(7).fill(""));
+  const [dniKcal, setDniKcal] = useState(() => Array(7).fill(""));
+
+  /* Zmiana zakresu przycina albo dopełnia panele, zachowując wpisane wartości
+     liczone od końca okresu — bo to koniec jest datą wpisu. */
+  useEffect(() => {
+    const dopasuj = (t) => {
+      if (t.length === dniOkresu) return t;
+      if (t.length > dniOkresu) return t.slice(t.length - dniOkresu);
+      return Array(dniOkresu - t.length).fill("").concat(t);
+    };
+    setDniWaga((t) => dopasuj(t));
+    setDniKcal((t) => dopasuj(t));
+  }, [dniOkresu]);
+
   const [pas, setPas] = useState("");
   const [imp, setImp] = useState(null);
   const [impW, setImpW] = useState(null);
@@ -1225,6 +1257,8 @@ export default function Mockup() {
       kcal: Math.round(liczba(kcal) || 0),
       cheats: cheaty,
       note: notatka,
+      dni: dniOkresu,
+      od: dataOd,
       poza,
     };
     setEntries((prev) => {
@@ -1234,9 +1268,9 @@ export default function Mockup() {
 
     /* Dni z panelu siedmiodniowego zasilają kalendarz. Puste pola pomijamy,
        żeby brak ważenia nie zapisał się jako zero. */
-    const start = d(dataWpisu) - 6 * 864e5;
+    const start = d(dataWpisu) - (dniOkresu - 1) * 864e5;
     const nowe = { ...DZIENNE };
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < dniOkresu; i++) {
       const dzien = new Date(start + i * 864e5).toISOString().slice(0, 10);
       const wg = liczba(dniWaga[i]);
       const kc = liczba(dniKcal[i]);
@@ -1257,14 +1291,15 @@ export default function Mockup() {
      zostają — kasujemy tylko to, co dotyczy jednego wpisu. */
   function nowyTydzien() {
     setWaga(""); setKcal(""); setPas("");
-    setDniWaga(["","","","","","",""]);
-    setDniKcal(["","","","","","",""]);
+    setDniWaga(Array(dniOkresu).fill(""));
+    setDniKcal(Array(dniOkresu).fill(""));
     setSen(3); setFbw(2); setSila(2); setAkty([]); setCheaty(0);
     setNotatka(""); setPoza(false); setKom(""); setSkopiowane(false);
     setImp(null); setImpW(null); setImpBlad(null);
     setStage("form");
     const n = new Date(d(dataWpisu) + 7 * 864e5);
     setDataWpisu(n.toISOString().slice(0, 10));
+    setDataOd(new Date(d(dataWpisu) + 864e5).toISOString().slice(0, 10));
   }
 
   /* Usunięcie wpisu zabiera też komentarz — jeden tydzień to jeden rekord.
@@ -1345,6 +1380,10 @@ export default function Mockup() {
     setDania((prev) => prev.map((dd) => {
       if (dd.id !== id) return dd;
       const nowe = { ...dd, [pole]: Number.isNaN(x) ? null : x };
+      /* Ocena powstaje po ugotowaniu, więc danie z oceną jest z definicji
+         wykonane — przestawianie statusu ręcznie byłoby dublowaniem tej samej
+         informacji dwa razy. */
+      if (nowe[pole] != null) nowe.status = "wykonane";
       if (nowe.tresc) nowe.tresc = wstawDoMarkdownu(nowe.tresc,
         { ocena: nowe.ocena, zona: nowe.zona, porcje: nowe.porcje, makro: nowe.makro });
       return nowe;
@@ -1508,9 +1547,9 @@ export default function Mockup() {
     setEv(null);
   }
 
-  function odhaczEv(id) {
+  function odhaczEv(id, zListy) {
     setWydarzenia((prev) => prev.map((w) => (w.id === id ? { ...w, zrobione: !w.zrobione } : w)));
-    setEv(null);
+    if (!zListy) setEv(null);
   }
 
   /* Tempo zmieniamy w fazie, w której jesteśmy dzisiaj — a nie globalnie,
@@ -1720,8 +1759,8 @@ ZASADY:
     if (!impW || !impW.length) return;
     const wg = {};
     impW.forEach((d) => { wg[d.data] = d.waga; });
-    const nowe = DNI.map((_, i) => {
-      const iso = isoDnia(dataWpisu, i);
+    const nowe = Array.from({ length: dniOkresu }, (_, i) => {
+      const iso = isoDnia(dataWpisu, i, dniOkresu);
       return wg[iso] != null ? num(wg[iso], 1) : "";
     });
     if (nowe.some(Boolean)) {
@@ -1742,8 +1781,8 @@ ZASADY:
     if (!imp || !imp.length) return;
     const wg = {};
     imp.forEach((d) => { wg[d.data] = d; });
-    const nowe = DNI.map((_, i) => {
-      const iso = isoDnia(dataWpisu, i);
+    const nowe = Array.from({ length: dniOkresu }, (_, i) => {
+      const iso = isoDnia(dataWpisu, i, dniOkresu);
       return wg[iso] ? String(Math.round(wg[iso].kcal)) : "";
     });
     if (nowe.some(Boolean)) {
@@ -1812,6 +1851,9 @@ ZASADY:
     return p2 == null || !poprzedni || !poprzedni.waist ? null : p2 - poprzedni.waist;
   })();
 
+  /* Ubytek dzielimy przez rzeczywistą liczbę dni, nie przez liczbę wpisów.
+     Przy okresie dziesięciodniowym traktowanie go jak tygodnia zawyżałoby
+     deficyt o połowę. */
   const balance = useMemo(() => {
     const czynne = series.filter((e) => !e.poza);
     const win = czynne.slice(-4);
@@ -1864,14 +1906,23 @@ ZASADY:
     if (pusty) return "Brak zapisanych tygodni.";
     const L = [];
     const tyg = Math.round((d(latest.date) - d(ustawienia.kamienie[0].date)) / 6048e5) + 1;
+    const dniOst = latest.dni || 7;
     L.push(`PRZEGLĄD — ${latest.date}`);
     L.push(`Tydzień projektu: ${tyg}  ·  ${phaseAt(latest.date).label}`);
+    L.push(`Okres oceniany: ${dniOst} dni${latest.od ? ` (${latest.od} – ${latest.date})` : ""}` +
+      (dniOst !== 7 ? "  ← to NIE jest zwykły tydzień, uwzględnij to w ocenie" : ""));
     L.push("");
     L.push(`Waga (trend 3-tyg.): ${num(latest.trend)} kg`);
     L.push(`Plan na dziś: ${num(planAt(latest.date))} kg`);
     L.push(`Odchylenie: ${variance >= 0 ? "+" : "−"}${num(Math.abs(variance))} kg`);
     L.push(`Ostatni pomiar surowy: ${num(latest.weight)} kg`);
     L.push(`Od startu: ${num(latest.trend - ustawienia.kamienie[0].weight)} kg`);
+    if (series.length >= 2) {
+      const p = series[series.length - 2];
+      const dniMiedzy = Math.max(1, Math.round((d(latest.date) - d(p.date)) / 864e5));
+      const tempo = ((latest.trend - p.trend) / dniMiedzy) * 7;
+      L.push(`Tempo w przeliczeniu na tydzień: ${num(tempo)} kg/tydz. (cel ${num(tempoWFazie(latest.date, ustawienia))})`);
+    }
     L.push("");
     if (latest.waist) L.push(`Pas: ${num(latest.waist)} cm`);
     const ost4 = series.slice(-4);
@@ -1997,10 +2048,16 @@ ZASADY:
       trend: series.map((e) => `${px(d(e.date))},${py(e.trend)}`) };
   }, [series]);
 
+  /* Statusy zeszły z pięciu do dwóch. Stare wartości mapujemy w locie,
+     żeby dania zapisane wcześniej nie wypadły z żadnego filtra. */
+  const statusDania = (x) =>
+    ["ocenione", "vault", "odrzucone", "wykonane"].includes(x.status) ? "wykonane" : "kuchnia";
+
   const dania = DANIA.filter((x) =>
     filtr === "wszystko" ? true :
-    filtr === "sprawdzone" ? x.ocena >= 7 :
-    filtr === "wtoku" ? ["kuchnia", "propozycja"].includes(x.status) : true);
+    filtr === "ulubione" ? !!x.ulubione :
+    filtr === "dowykonania" ? statusDania(x) === "kuchnia" :
+    filtr === "wykonane" ? statusDania(x) === "wykonane" : true);
 
   if (ustawienia.pin && !odblokowany) {
     return (
@@ -2141,10 +2198,10 @@ ZASADY:
                 <em>terminy dodajesz w zakładce Kalendarz</em></span></li>
             )}
             {agenda.map((a) => (
-              <li key={a.id} className={"ag " + a.stan}
-                  onClick={() => { setTab("kalendarz"); otworzEv(a.zrodlo); }}>
-                <span className="ag-dot" />
-                <span className="ag-body">
+              <li key={a.id} className={"ag " + a.stan}>
+                <button className="ag-check" title="Odhacz jako zrobione"
+                        onClick={() => odhaczEv(a.id, true)}>✓</button>
+                <span className="ag-body" onClick={() => { setTab("kalendarz"); otworzEv(a.zrodlo); }}>
                   <b>{a.co}</b>
                   <em>{a.czemu}</em>
                 </span>
@@ -2165,17 +2222,33 @@ ZASADY:
           <div className="row top">
             <label>Data
               <input type="date" value={dataWpisu}
-                     onChange={(e) => setDataWpisu(e.target.value || dataWpisu)} />
+                     onChange={(e) => {
+                       const nowa = e.target.value || dataWpisu;
+                       /* Przesuwając koniec, przesuwamy i początek — inaczej
+                          poprawka daty po fakcie rozciągałaby okres. */
+                       const roznica = d(nowa) - d(dataWpisu);
+                       setDataWpisu(nowa);
+                       setDataOd(new Date(d(dataOd) + roznica).toISOString().slice(0, 10));
+                     }} />
               <span className="dlbl">
                 {nazwaDnia(dataWpisu)}
-                {dataWpisu !== "2026-11-01" && <em className="wstecz"> · wpis wsteczny</em>}
+                {dataWpisu !== new Date().toISOString().slice(0, 10) &&
+                  <em className="wstecz"> · wpis wsteczny</em>}
+              </span>
+            </label>
+            <label>Okres od
+              <input type="date" value={dataOd} max={dataWpisu}
+                     onChange={(e) => setDataOd(e.target.value || dataOd)} />
+              <span className="dlbl">
+                {dniOkresu} dni
+                {dniOkresu !== 7 && <em className="wstecz"> · nietypowy okres</em>}
               </span>
             </label>
             <label>Waga (kg)
               <input value={waga} onChange={(e) => setWaga(e.target.value)} />
               <span className="minirow">
                 <button className="mini" onClick={() => setOpenWaga(!openWaga)}>
-                  {openWaga ? "zwiń tydzień" : "policz z 7 dni"}
+                  {openWaga ? "zwiń panel" : `policz z ${dniOkresu} dni`}
                 </button>
                 <span className="mini-sep">·</span>
                 <label className="mini imp-lbl">
@@ -2286,7 +2359,7 @@ ZASADY:
               <input value={kcal} onChange={(e) => setKcal(e.target.value)} />
               <span className="unit">kcal/dzień średnio</span>
               <button className="mini" onClick={() => setOpenKcal(!openKcal)}>
-                {openKcal ? "zwiń tydzień" : "policz z 7 dni"}
+                {openKcal ? "zwiń panel" : `policz z ${dniOkresu} dni`}
               </button>
               <label className="mini imp-lbl">
                 wczytaj CSV
@@ -2470,12 +2543,12 @@ ZASADY:
       )}
 
 
-      {(tab === "dane" || tab === "ustawienia") && (
+      {(tab === "dane" || tab === "ustawienia" || tab === "aplikacja" || tab === "tempo") && (
         <>
       <section className="panel exp open">
         <div className="exp-tog statyczny">
                     <span>Dane i eksport</span>
-          <span className="tiny-note">schemat v{SCHEMA}</span>
+          
         </div>
 
         {tab === "dane" && (
@@ -2550,7 +2623,7 @@ ZASADY:
           na przeglądzie — musi być dostępna stąd. */}
       <section className="panel exp open">
         <div className="exp-tog statyczny">
-                    <span>Ustawienia</span>
+          <span>Synchronizacja i API</span>
           <span className="tiny-note">
             {ustawienia.klucz ? "klucz ✓" : "brak klucza"} · {ustawienia.token ? "sync ✓" : "sync off"}
           </span>
@@ -2600,6 +2673,42 @@ ZASADY:
             {sync.stan === "gotowe" && !sync.blad &&
               <p className="note">Ostatnio: {String(sync.kiedy).slice(0, 16).replace("T", " ")}</p>}
 
+          </div>
+        )}
+
+        {tab === "aplikacja" && (
+          <div className="exp-body">
+            <h4 className="ust-h">Blokada</h4>
+            <p className="note">Cztery cyfry przy otwarciu. Nie chroni pliku na dysku — chroni przed zajrzeniem w odblokowany telefon leżący na ławce.</p>
+            <input className="ust-in short" inputMode="numeric" maxLength={4} placeholder="bez blokady"
+                   value={ustawienia.pin}
+                   onChange={(e) => setUstawienia({ ...ustawienia, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
+
+            <h4 className="ust-h">Wygląd</h4>
+            <p className="note">Ustawienie trzymane osobno na każdym urządzeniu — telefon i komputer mogą chodzić w różnych trybach.</p>
+            <div className="imp-akcje">
+              <button className="ghost" onClick={() => setDark(!dark)}>
+                {dark ? "Przełącz na jasny" : "Przełącz na ciemny"}</button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {tab === "aplikacja" && (
+        <section className="panel exp open">
+          <div className="exp-tog statyczny"><span>Aplikacja</span></div>
+        </section>
+      )}
+        </>
+      )}
+
+      {tab === "tempo" && (
+        <section className="panel exp open">
+          <div className="exp-tog statyczny">
+            <span>Plan i tempo</span>
+            <span className="tiny-note">liczby, na których stoi cała roadmapa</span>
+          </div>
+          <div className="exp-body">
             <h4 className="ust-h">Plan i tempo</h4>
             <p className="note">Reguła z ROADMAP: dwa tygodnie regresu siły z rzędu przy komplecie sesji oznaczają powrót do 0,28 — niezależnie od tego, co pokazuje waga.</p>
             <label>Kalorie planowane
@@ -2621,16 +2730,8 @@ ZASADY:
                 ))}
               </tbody>
             </table>
-
-            <h4 className="ust-h">Blokada</h4>
-            <p className="note">Cztery cyfry przy otwarciu. Nie chroni pliku na dysku — chroni przed zajrzeniem w odblokowany telefon leżący na ławce.</p>
-            <input className="ust-in short" inputMode="numeric" maxLength={4} placeholder="bez blokady"
-                   value={ustawienia.pin}
-                   onChange={(e) => setUstawienia({ ...ustawienia, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
           </div>
-        )}
-      </section>
-        </>
+        </section>
       )}
 
       {/* ── PLAN ── */}
@@ -3365,6 +3466,21 @@ ZASADY:
             </div>
           )}
 
+          {WYDARZENIA.some((w) => w.zrobione) && (
+            <div className="zrobione-lista">
+              <span className="cap">Odhaczone</span>
+              <ul>
+                {WYDARZENIA.filter((w) => w.zrobione)
+                  .sort((a, b) => (a.d < b.d ? 1 : -1)).slice(0, 12).map((w) => (
+                  <li key={w.id}>
+                    <span>{w.d} — {w.n}</span>
+                    <button className="mini ghost" onClick={() => odhaczEv(w.id)}>Przywróć</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="kalexp">
             <span className="cap">Eksport do kalendarza</span>
             <div className="kalexp-btns">
@@ -3464,9 +3580,9 @@ ZASADY:
       {tab === "kuchnia" && (
         <section className="panel">
           <div className="bal-head">
-            <span>Kuchnia</span>
+            <span>Cookbook</span>
             <span className="filters">
-              {[["wszystko","Wszystko"],["sprawdzone","Sprawdzone"],["wtoku","W toku"]].map(([k,l]) => (
+              {[["wszystko","Wszystko"],["dowykonania","Do wykonania"],["wykonane","Wykonane"],["ulubione","Ulubione"]].map(([k,l]) => (
                 <button key={k} className={filtr===k?"ghost tiny on":"ghost tiny"} onClick={()=>setFiltr(k)}>{l}</button>
               ))}
             </span>
@@ -3474,13 +3590,17 @@ ZASADY:
 
           <div className="dishes">
             {dania.map((x) => (
-              <article key={x.id} className={"dish st-" + x.status}>
+              <article key={x.id} className={"dish st-" + statusDania(x)}>
                 <div className="dtop">
                   <h4>{x.nazwa}</h4>
-                  <span className={"badge b-" + x.status}>
-                    {x.status === "vault" ? "w vaulcie" : x.status === "odrzucone" ? "odrzucone"
-                      : x.status === "kuchnia" ? "do wykonania" : "propozycja"}
+                  <span className={"badge b-" + statusDania(x)}>
+                    {statusDania(x) === "wykonane" ? "wykonane" : "do wykonania"}
                   </span>
+                  <button className={"serce" + (x.ulubione ? " on" : "")}
+                          title={x.ulubione ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
+                          onClick={() => zmienDanie(x.id, { ulubione: !x.ulubione })}>
+                    {x.ulubione ? "♥" : "♡"}
+                  </button>
                 </div>
                 <div className="dmacro">
                   <span><b>{x.bialko}</b> g białka</span>
@@ -3496,13 +3616,10 @@ ZASADY:
                 {x.zmiany && <p className="dchg">{x.zmiany}</p>}
 
                 <div className="dact">
-                  <select className="dsel" value={x.status}
+                  <select className="dsel" value={statusDania(x)}
                           onChange={(e) => zmienDanie(x.id, { status: e.target.value })}>
-                    <option value="propozycja">propozycja</option>
                     <option value="kuchnia">do wykonania</option>
-                    <option value="ocenione">ocenione</option>
-                    <option value="vault">w vaulcie</option>
-                    <option value="odrzucone">odrzucone</option>
+                    <option value="wykonane">wykonane</option>
                   </select>
                   {x.tresc && (
                     <button className="ghost tiny"
@@ -3559,7 +3676,7 @@ ZASADY:
               <input type="file" accept=".md,text/markdown" multiple className="imp-in"
                      onChange={(e) => wgrajPrzepisy(e.target.files)} />
             </label>
-            <span className="ready">{DANIA.filter((x) => (x.ocena || 0) >= 7).length} dań z oceną 7+</span>
+            <span className="ready">{DANIA.filter((x) => !!x.ulubione).length} w ulubionych</span>
           </div>
           {mdBlad && <div className="impbox err"><b>Plik odbiega od szablonu.</b> {mdBlad}</div>}
           <p className="note">Wgrywasz plik prosto z vaulta — apka czyta tytuł, tagi, porcje i tabelę makro z sekcji Macros. Poprawka zrobiona tutaj wraca do vaulta przyciskiem „Pobierz .md", więc nie zostaje uwięziona w telefonie.</p>
@@ -3797,16 +3914,16 @@ function przesun({ r, m }, k) {
 }
 
 /** ISO dla i-tego dnia tygodnia kończącego się w podanym dniu (0 = poniedziałek). */
-function isoDnia(koniec, i) {
+function isoDnia(koniec, i, dlugosc) {
   const dt = new Date(koniec + "T00:00:00");
-  dt.setDate(dt.getDate() - 6 + i);
+  dt.setDate(dt.getDate() - ((dlugosc || 7) - 1) + i);
   const p = (n) => String(n).padStart(2, "0");
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
 }
 
 /** Skrócona data do etykiety dnia. */
-function dataDnia(koniec, i) {
-  const iso = isoDnia(koniec, i);
+function dataDnia(koniec, i, dlugosc) {
+  const iso = isoDnia(koniec, i, dlugosc);
   return `${iso.slice(8)}.${iso.slice(5, 7)}`;
 }
 
@@ -3818,14 +3935,15 @@ function nazwaDnia(iso) {
 
 function Tydzien({ wartosci, jednostka, wynik, format, onChange, koniec }) {
   const puste = wartosci.filter((x) => !String(x).trim()).length;
+  const dl = wartosci.length;
   return (
     <div className="tyd">
       <div className="tyd-grid">
-        {DNI.map((dz, i) => (
-          <label key={dz} className={"tyd-d " + (String(wartosci[i]).trim() ? "ma" : "")}>
+        {wartosci.map((_, i) => (
+          <label key={i} className={"tyd-d " + (String(wartosci[i]).trim() ? "ma" : "")}>
             <span className="fkey tyd-key">
-              {dz}
-              <em>{dataDnia(koniec, i)}</em>
+              {nazwaDnia(isoDnia(koniec, i, dl)).slice(0, 3)}
+              <em>{dataDnia(koniec, i, dl)}</em>
             </span>
             <div className="fval">
               <div className="daygrid">
@@ -4409,6 +4527,7 @@ const CSS = `
 .subnav{display:flex;gap:22px;margin-top:14px;border-bottom:1px solid var(--rule);
   flex-wrap:wrap}
 .snav{padding:0 0 10px;background:none;border:0;border-bottom:2px solid transparent;
+  text-transform:uppercase;letter-spacing:.09em;
   margin-bottom:-1px;cursor:pointer;white-space:nowrap;
   font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--ink-2)}
 .snav:hover{color:var(--ink)}
@@ -4468,6 +4587,26 @@ const CSS = `
   padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
   border-radius:6px;background:var(--bg-1);font-size:13px}
 .zdalne span{flex:1;min-width:220px}
+
+.ag-check{flex:none;width:20px;height:20px;border:1px solid var(--rule);border-radius:4px;
+  background:var(--paper);color:var(--ink-3);font-size:11px;line-height:1;cursor:pointer;padding:0}
+.ag-check:hover{border-color:var(--ink);color:var(--ink)}
+.ag-body{cursor:pointer}
+.zrobione-lista{margin:16px 0;padding:12px 14px;border:1px solid var(--rule);
+  border-radius:6px;background:var(--bg-1)}
+.zrobione-lista ul{list-style:none;margin:8px 0 0;padding:0}
+.zrobione-lista li{display:flex;align-items:center;gap:10px;padding:5px 0;
+  font-size:12.5px;color:var(--ink-2);border-bottom:1px solid var(--hair)}
+.zrobione-lista li:last-child{border-bottom:none}
+.zrobione-lista li span{flex:1}
+
+.dtop{display:flex;align-items:center;gap:10px}
+.dtop h4{flex:1;min-width:0}
+.serce{background:none;border:0;cursor:pointer;font-size:19px;line-height:1;
+  padding:0 2px;color:var(--ink-2);transition:color .12s,transform .12s}
+.serce:hover{color:var(--warn);transform:scale(1.12)}
+.serce.on{color:var(--warn)}
+.badge.b-wykonane{background:var(--tint);color:var(--ink-2)}
 
 /* ── kuchnia i raporty ───────────────────────────────────── */
 .dsel{padding:4px 8px;border:1px solid var(--rule);border-radius:4px;
