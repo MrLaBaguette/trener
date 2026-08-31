@@ -986,7 +986,6 @@ export default function Mockup() {
     /* Pierwsze uruchomienie efektu to tylko zapis stanu wczytanego z pamięci,
        nie zmiana wprowadzona przez człowieka — nie ma czego wysyłać. */
     if (pierwszyZapis.current) { pierwszyZapis.current = false; return; }
-    if (ok) wyslijWTle();
   }, [stanDoZapisu]);
 
   useEffect(() => { zapisz(KLUCZ_USTAWIENIA, ustawienia); }, [ustawienia]);
@@ -1062,6 +1061,19 @@ export default function Mockup() {
             if (!zgoda) { setSync({ ...sync, stan: "bezczynny" }); return; }
           }
         }
+        /* Wysyłka uboższego stanu to najczęstsza droga do utraty danych:
+           urządzenie otwarte pierwszy raz kasuje dorobek z drugiego. */
+        if (sync.zdalneLiczby) {
+          const tu = (stanDoZapisu.entries || []).length + (stanDoZapisu.wymiary || []).length
+                   + (stanDoZapisu.dania || []).length + (stanDoZapisu.skany || []).length;
+          if (tu < sync.zdalneLiczby) {
+            const zgoda = window.confirm(
+              "W repozytorium jest więcej danych niż na tym urządzeniu.\n\n" +
+              "Wysłanie je zastąpi. Na pewno?"
+            );
+            if (!zgoda) { setSync({ ...sync, stan: "bezczynny" }); return; }
+          }
+        }
         const nowe = await ghZapisz(ustawienia, { schema: SCHEMA, zapis: new Date().toISOString(), dane: stanDoZapisu }, sha);
         setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha: nowe });
       }
@@ -1084,18 +1096,19 @@ export default function Mockup() {
     ghPobierz(ustawienia).then(({ dane, sha }) => {
       setSync((p) => ({ ...p, sha }));
       const lokalny = (odczytaj(KLUCZ, {}) || {}).zapis || "";
+      const dd = dane && (dane.dane || dane);
+      if (dd) {
+        const ile = (dd.entries || []).length + (dd.wymiary || []).length
+                  + (dd.dania || []).length + (dd.skany || []).length;
+        setSync((p) => ({ ...p, sha, zdalneLiczby: ile }));
+      }
       if (dane && dane.zapis && (!lokalny || dane.zapis > lokalny)) setZdalneNowsze(true);
     }).catch(() => {});
   }, []);
 
-  /* Wysyłka po zapisie. Bez tego kopia w repozytorium starzeje się cicho,
-     a przy przesiadce na drugie urządzenie wygląda jak utrata danych. */
-  const wyslijPozniej = useRef(null);
-  function wyslijWTle() {
-    if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
-    clearTimeout(wyslijPozniej.current);
-    wyslijPozniej.current = setTimeout(() => synchronizuj("wyslij"), 2500);
-  }
+  /* Wysyłki automatycznej nie ma świadomie. Urządzenie z uboższą pamięcią
+     — na przykład telefon otwarty pierwszy raz — nadpisywałoby bogatszy
+     stan w repozytorium, zanim zdążysz cokolwiek zauważyć. */
 
   /* ── Zapis tygodnia ─────────────────────────────────────
      Wpis z tą samą datą nadpisuje poprzedni zamiast tworzyć duplikat —
@@ -1446,19 +1459,54 @@ export default function Mockup() {
     setWymForm({ date: new Date().toISOString().slice(0, 10), masa: "" });
   }
 
-  /* Import pliku JSON — druga droga odzyskania danych, niezależna od GitHuba. */
+  /* ── Odzyskiwanie danych ────────────────────────────────
+     Dwie drogi, bo przy ratowaniu danych jedna to za mało: plik i wklejenie
+     treści. Wklejanie działa nawet wtedy, gdy plik ma złe rozszerzenie
+     albo system nie pozwala go wybrać. */
+  const [impStan, setImpStan] = useState(null);
+  const [wklejka, setWklejka] = useState("");
+
+  function policzStan(dd) {
+    if (!dd) return null;
+    return {
+      tygodnie: (dd.entries || []).length,
+      wymiary: (dd.wymiary || []).length,
+      dania: (dd.dania || []).length,
+      skany: (dd.skany || []).length,
+      makro: (dd.zapisane || []).length,
+      wydarzenia: (dd.wydarzenia || []).length,
+      cwiczenia: Object.keys(dd.ciezary || {}).length,
+    };
+  }
+
+  function przygotujImport(tekst, skad) {
+    try {
+      const czysty = String(tekst).trim();
+      if (!czysty) { setImpStan({ blad: "Pusto — nic nie wczytałem." }); return; }
+      const o = JSON.parse(czysty);
+      const dd = o.dane || o;
+      if (!dd || typeof dd !== "object" || !policzStan(dd)) {
+        setImpStan({ blad: "Plik jest poprawnym JSON-em, ale nie wygląda na eksport tej apki." });
+        return;
+      }
+      setImpStan({ dane: dd, licz: policzStan(dd), zapis: o.zapis || null, skad });
+    } catch (e) {
+      setImpStan({ blad: "Nie udało się odczytać: " + e.message +
+        ". Jeśli kopiowałeś z GitHuba, upewnij się, że była to wersja „Raw” i całość, od pierwszego { do ostatniego }." });
+    }
+  }
+
   function importujJSON(plik) {
     const r = new FileReader();
-    r.onload = () => {
-      try {
-        const o = JSON.parse(r.result);
-        wgrajStan(o.dane || o);
-        window.alert("Dane wczytane.");
-      } catch (e) {
-        window.alert("To nie wygląda na plik z eksportu tej apki.");
-      }
-    };
+    r.onload = () => przygotujImport(r.result, plik.name);
+    r.onerror = () => setImpStan({ blad: "Nie udało się otworzyć pliku." });
     r.readAsText(plik);
+  }
+
+  function zatwierdzImport() {
+    wgrajStan(impStan.dane);
+    setImpStan(null);
+    setWklejka("");
   }
 
   function zapiszWynik() {
@@ -3251,14 +3299,48 @@ ZASADY:
             </div>
             <div className="exp-row">
               <div className="exp-txt">
-                <b>Import z pliku</b>
-                <em>Odtworzenie rejestru z wcześniejszego eksportu. Nadpisuje to, co jest w tej przeglądarce.</em>
+                <b>Odzyskanie danych</b>
+                <em>Z pliku eksportu albo z historii repozytorium. Podgląd przed zapisem — nic nie wchodzi po cichu.</em>
               </div>
-              <label className="ghost imp-lbl">Wczytaj JSON
-                <input type="file" accept=".json,application/json" className="imp-in"
-                       onChange={(e) => e.target.files[0] && importujJSON(e.target.files[0])} />
+              <label className="ghost imp-lbl">Wybierz plik
+                <input type="file" className="imp-in"
+                       onChange={(e) => { if (e.target.files[0]) importujJSON(e.target.files[0]); e.target.value = ""; }} />
               </label>
             </div>
+
+            <p className="note">Jeśli wybranie pliku nie działa — bo ma złe rozszerzenie albo kopiowałeś treść z GitHuba — wklej ją tutaj. To ta sama droga, tylko z pominięciem pliku.</p>
+            <textarea className="dedit" rows={4} value={wklejka}
+                      placeholder='Wklej całość, od { do }'
+                      onChange={(e) => setWklejka(e.target.value)} />
+            <div className="imp-akcje">
+              <button className="ghost" disabled={!wklejka.trim()}
+                      onClick={() => przygotujImport(wklejka, "wklejone")}>Sprawdź wklejone</button>
+            </div>
+
+            {impStan && impStan.blad && (
+              <div className="impbox err"><b>Nie wczytałem.</b> {impStan.blad}</div>
+            )}
+
+            {impStan && impStan.dane && (
+              <div className="impbox">
+                <b>Znalazłem dane{impStan.zapis ? ` z ${String(impStan.zapis).slice(0, 16).replace("T", " ")}` : ""}:</b>
+                <table className="tbl imp-tbl">
+                  <tbody>
+                    <tr><td>Tygodnie</td><td className="n">{impStan.licz.tygodnie}</td>
+                        <td>Wymiary</td><td className="n">{impStan.licz.wymiary}</td></tr>
+                    <tr><td>Dania</td><td className="n">{impStan.licz.dania}</td>
+                        <td>Skany</td><td className="n">{impStan.licz.skany}</td></tr>
+                    <tr><td>Obliczenia makro</td><td className="n">{impStan.licz.makro}</td>
+                        <td>Ćwiczenia z obciążeniem</td><td className="n">{impStan.licz.cwiczenia}</td></tr>
+                  </tbody>
+                </table>
+                <p className="note">Zastąpi to, co jest teraz w tej przeglądarce. Porównaj liczby z tym, co pamiętasz — jeśli któraś jest niższa, niż powinna, weź wcześniejszy zapis z historii repozytorium.</p>
+                <div className="imp-akcje">
+                  <button className="primary" onClick={zatwierdzImport}>Wczytaj te dane</button>
+                  <button className="ghost" onClick={() => setImpStan(null)}>Odrzuć</button>
+                </div>
+              </div>
+            )}
             <p className="note">Eksport bez importu nie jest kopią zapasową. Trzymaj oba pod ręką — albo włącz synchronizację niżej, wtedy kopia robi się sama.</p>
           </div>
         )}
