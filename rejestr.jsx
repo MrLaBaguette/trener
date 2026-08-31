@@ -986,6 +986,7 @@ export default function Mockup() {
     /* Pierwsze uruchomienie efektu to tylko zapis stanu wczytanego z pamięci,
        nie zmiana wprowadzona przez człowieka — nie ma czego wysyłać. */
     if (pierwszyZapis.current) { pierwszyZapis.current = false; return; }
+    if (ok) wyslijWTle();
   }, [stanDoZapisu]);
 
   useEffect(() => { zapisz(KLUCZ_USTAWIENIA, ustawienia); }, [ustawienia]);
@@ -1015,6 +1016,7 @@ export default function Mockup() {
   }
 
   async function synchronizuj(kierunek, auto) {
+    if (kierunek === "wyslij" && auto && !zgodne) return;
     if (!ustawienia.token || !ustawienia.repo) {
       setSync({ ...sync, stan: "blad", blad: "Uzupełnij repozytorium i token w Ustawieniach." });
       return;
@@ -1045,6 +1047,7 @@ export default function Mockup() {
           if (!zgoda) { setSync({ ...sync, stan: "bezczynny", sha }); return; }
         }
         wgrajStan(dane.dane || dane);
+        setZgodne(true);
         setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha });
       } else {
         let sha = sync.sha;
@@ -1067,6 +1070,7 @@ export default function Mockup() {
           const tu = (stanDoZapisu.entries || []).length + (stanDoZapisu.wymiary || []).length
                    + (stanDoZapisu.dania || []).length + (stanDoZapisu.skany || []).length;
           if (tu < sync.zdalneLiczby) {
+            if (auto) { setZgodne(false); setZdalneNowsze(true); setSync({ ...sync, stan: "bezczynny" }); return; }
             const zgoda = window.confirm(
               "W repozytorium jest więcej danych niż na tym urządzeniu.\n\n" +
               "Wysłanie je zastąpi. Na pewno?"
@@ -1075,9 +1079,11 @@ export default function Mockup() {
           }
         }
         const nowe = await ghZapisz(ustawienia, { schema: SCHEMA, zapis: new Date().toISOString(), dane: stanDoZapisu }, sha);
-        setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha: nowe });
+        setZgodne(true);
+        setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha: nowe, zdalneLiczby: null });
       }
     } catch (e) {
+      if (e.message === "KONFLIKT") { setZgodne(false); setZdalneNowsze(true); }
       setSync({ ...sync, stan: "blad", blad: e.message === "KONFLIKT"
         ? "Ktoś zapisał w międzyczasie. Pobierz zdalne dane i spróbuj ponownie."
         : e.message });
@@ -1102,13 +1108,31 @@ export default function Mockup() {
                   + (dd.dania || []).length + (dd.skany || []).length;
         setSync((p) => ({ ...p, sha, zdalneLiczby: ile }));
       }
+      /* Zdalne nowsze — urządzenie zostaje w tyle i nie ma prawa wysyłać,
+         dopóki człowiek nie zdecyduje. W przeciwnym razie jest zgodne
+         i od tej chwili wysyła samo. */
       if (dane && dane.zapis && (!lokalny || dane.zapis > lokalny)) setZdalneNowsze(true);
+      else setZgodne(true);
     }).catch(() => {});
   }, []);
 
-  /* Wysyłki automatycznej nie ma świadomie. Urządzenie z uboższą pamięcią
-     — na przykład telefon otwarty pierwszy raz — nadpisywałoby bogatszy
-     stan w repozytorium, zanim zdążysz cokolwiek zauważyć. */
+  /* ── Wysyłka automatyczna z bramką ──────────────────────
+     Problemem nigdy nie była automatyczność, tylko wysyłanie przez
+     urządzenie, które nie wie, co leży na serwerze. Telefon otwarty
+     pierwszy raz miał uboższą pamięć i nadpisywał nią dorobek z komputera.
+
+     Stąd warunek: urządzenie wysyła samo dopiero po tym, jak w tej sesji
+     potwierdziło, że jest zgodne ze zdalnym albo od niego nowsze.
+     Dopóki na górze wisi pasek „zdalne są nowsze", automat śpi. */
+  const [zgodne, setZgodne] = useState(false);
+  const wyslijPozniej = useRef(null);
+
+  function wyslijWTle() {
+    if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
+    if (!zgodne) return;
+    clearTimeout(wyslijPozniej.current);
+    wyslijPozniej.current = setTimeout(() => synchronizuj("wyslij", true), 3000);
+  }
 
   /* ── Zapis tygodnia ─────────────────────────────────────
      Wpis z tą samą datą nadpisuje poprzedni zamiast tworzyć duplikat —
@@ -3435,6 +3459,8 @@ ZASADY:
           {sync.kiedy && sync.stan === "gotowe" && !sync.blad &&
             ` · GitHub ${String(sync.kiedy).slice(11, 16)}`}
           {sync.blad && " · synchronizacja: " + sync.blad}
+          {ustawienia.token && ustawienia.repo && !sync.blad &&
+            (zgodne ? " · wysyła sama" : " · automat wstrzymany")}
         </span>
         <span className="foot-dev">
           Invented &amp; designed by <b>Big Dog</b> · engineered by <b>Claude</b> · Łódź 2026
