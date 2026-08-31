@@ -1087,6 +1087,23 @@ export default function Mockup() {
      urządzenia. Bez tego dwa telefony po cichu kasowałyby sobie dane. */
   const [sync, setSync] = useState({ stan: "bezczynny", kiedy: null, blad: null, sha: null });
 
+  /* Porównanie ilościowe przed nadpisaniem. Znacznik czasu mówi tylko, co jest
+     nowsze — a nowsze bywa uboższe, gdy drugie urządzenie zapisało coś po
+     tym, jak przestało wysyłać. */
+  function coZniknie(tu, tam) {
+    const pola = [
+      ["entries", "tygodni"], ["wymiary", "pomiarów wymiarów"], ["dania", "dań"],
+      ["skany", "skanów"], ["testy", "testów"], ["zapisane", "obliczeń makro"],
+      ["wydarzenia", "wydarzeń"],
+    ];
+    const out = [];
+    pola.forEach(([k, l]) => {
+      const a = (tu[k] || []).length, b = (tam[k] || []).length;
+      if (a > b) out.push(`${a - b} ${l} (tu ${a}, tam ${b})`);
+    });
+    return out;
+  }
+
   function wgrajStan(dane) {
     if (!dane) return;
     if (dane.entries) setEntries(dane.entries);
@@ -1137,7 +1154,17 @@ export default function Mockup() {
           );
           if (!zgoda) { setSync({ ...sync, stan: "bezczynny", sha }); return; }
         }
-        wgrajStan(dane.dane || dane);
+        const przych = dane.dane || dane;
+        const strata = coZniknie(stanDoZapisu, przych);
+        if (strata.length && !auto) {
+          const zgoda = window.confirm(
+            "Pobranie zastąpi dane na tym urządzeniu.\n\nZniknie:\n" +
+            strata.map((x) => "  · " + x).join("\n") +
+            "\n\nOK — pobierz mimo to.\nAnuluj — najpierw wyślij swoje."
+          );
+          if (!zgoda) { setSync({ ...sync, stan: "bezczynny", sha }); return; }
+        }
+        wgrajStan(przych);
         setZgodne(true);
         setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha,
           bazaZapis: dane.zapis || new Date().toISOString() });
@@ -1218,7 +1245,7 @@ export default function Mockup() {
       if (dd) {
         const ile = (dd.entries || []).length + (dd.wymiary || []).length
                   + (dd.dania || []).length + (dd.skany || []).length;
-        setSync((p) => ({ ...p, sha, zdalneLiczby: ile, bazaZapis: dane.zapis || "" }));
+        setSync((p) => ({ ...p, sha, zdalneLiczby: ile, zdalneStan: dd, bazaZapis: dane.zapis || "" }));
       }
       /* Zdalne nowsze — urządzenie zostaje w tyle i nie ma prawa wysyłać,
          dopóki człowiek nie zdecyduje. W przeciwnym razie jest zgodne
@@ -2143,7 +2170,12 @@ ZASADY:
 
       {zdalneNowsze && (
         <div className="zdalne">
-          <span>W repozytorium są nowsze dane niż na tym urządzeniu — prawdopodobnie z drugiego sprzętu.</span>
+          <span>
+            W repozytorium są nowsze dane niż na tym urządzeniu — prawdopodobnie z drugiego sprzętu.
+            {sync.zdalneStan && coZniknie(stanDoZapisu, sync.zdalneStan).length > 0 && (
+              <b className="zdalne-strata"> Uwaga: pobranie skasuje {coZniknie(stanDoZapisu, sync.zdalneStan).join(", ")}. Najpierw wyślij swoje.</b>
+            )}
+          </span>
           <button className="mini" onClick={() => { setZdalneNowsze(false); synchronizuj("pobierz"); }}>Pobierz je</button>
           <button className="mini ghost" onClick={() => { setZdalneNowsze(false); synchronizuj("wyslij"); }}>Wyślij moje</button>
           <button className="mini ghost" onClick={() => setZdalneNowsze(false)}>Później</button>
@@ -2622,9 +2654,11 @@ ZASADY:
                 const dane = zbierzDane({
                   entries: ENTRIES, komentarze: COMMENTS, testy: TESTY, cardio: CARDIO,
                   wymiary: WYMIARY, spiro: SPIRO, krew: KREW, skany: SCANS, planKcal: ustawienia.planKcal,
-                  ciezary, historia, zapisane,
+                  ciezary, historia, zapisane, wydarzenia: WYDARZENIA,
                 });
-                pobierzJson(dane, `rejestr-${dzisIso()}.json`);
+                /* Do pliku idzie i sekcja czytelna, i pełny stan — dopiero
+                   ta druga pozwala odtworzyć apkę z kopii. */
+                pobierzJson({ ...dane, ...stanDoPliku(stanDoZapisu) }, `ronnie-${dzisIso()}.json`);
               }}>Eksportuj JSON</button>
             </div>
             <div className="exp-row">
@@ -3826,7 +3860,7 @@ function budujIcs(lista) {
    Wersja schematu pozwala przyszłej aplikacji rozpoznać układ
    danych i zmigrować je bez przepisywania ręcznego. */
 
-function zbierzDane({ entries, komentarze, testy, cardio, wymiary, spiro, krew, skany, planKcal, ciezary, historia, zapisane }) {
+function zbierzDane({ entries, komentarze, testy, cardio, wymiary, spiro, krew, skany, planKcal, ciezary, historia, zapisane, wydarzenia }) {
   return {
     schema: SCHEMA,
     eksport: new Date().toISOString(),
@@ -3848,8 +3882,14 @@ function zbierzDane({ entries, komentarze, testy, cardio, wymiary, spiro, krew, 
     },
     trening: { cykle: CYKLE, obciazenia: ciezary, historiaObciazen: historia },
     kalkulator: zapisane,
-    wydarzenia: WYDARZENIA,
+    wydarzenia: wydarzenia || [],
   };
+}
+
+/* Sekcja odtwarzalna. Powyższa struktura jest do czytania, ta do wczytania —
+   klucze muszą odpowiadać dokładnie temu, czego szuka import. */
+function stanDoPliku(stan) {
+  return { schema: SCHEMA, zapis: new Date().toISOString(), dane: stan };
 }
 
 function pobierzJson(dane, nazwa) {
@@ -4654,6 +4694,7 @@ const CSS = `
   padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
   border-radius:6px;background:var(--bg-1);font-size:13px}
 .zdalne span{flex:1;min-width:220px}
+.zdalne-strata{display:block;margin-top:4px;color:#B4453C;font-weight:600}
 
 .ag-check{flex:none;width:20px;height:20px;border:1px solid var(--rule);border-radius:4px;
   background:var(--paper);color:var(--ink-3);font-size:11px;line-height:1;cursor:pointer;padding:0}
