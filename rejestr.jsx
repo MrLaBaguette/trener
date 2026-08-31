@@ -396,6 +396,8 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
+const WERSJA_APKI = "1.23";
+
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
 const KLUCZ_USTAWIENIA = "rejestr:ustawienia";
@@ -3791,6 +3793,7 @@ ZASADY:
         </span>
         <span className="foot-dev">
           Invented &amp; designed by <b>Big Dog</b> · engineered by <b>Claude</b> · Łódź 2026
+          <em className="foot-ver">v{WERSJA_APKI}</em>
         </span>
       </footer>
     </div>
@@ -4694,6 +4697,9 @@ const CSS = `
   padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
   border-radius:6px;background:var(--bg-1);font-size:13px}
 .zdalne span{flex:1;min-width:220px}
+.foot-ver{display:block;margin-top:3px;font-style:normal;opacity:.6;
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
+
 .zdalne-strata{display:block;margin-top:4px;color:#B4453C;font-weight:600}
 
 .ag-check{flex:none;width:20px;height:20px;border:1px solid var(--rule);border-radius:4px;
