@@ -1053,9 +1053,26 @@ export default function Mockup() {
         }
         wgrajStan(dane.dane || dane);
         setZgodne(true);
-        setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha });
+        setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha,
+          bazaZapis: dane.zapis || new Date().toISOString() });
       } else {
         let sha = sync.sha;
+        /* Automat sprawdza repozytorium tuż przed każdym zapisem. Bez tego
+           urządzenie wznowione z tła wysyła stan sprzed godzin, przekonane,
+           że nadal jest zgodne. Jeden dodatkowy odczyt jest tańszy niż
+           nadpisana praca z drugiego sprzętu. */
+        if (auto) {
+          const p = await ghPobierz(ustawienia);
+          const bazowy = sync.bazaZapis || "";
+          if (p.dane && p.dane.zapis && bazowy && p.dane.zapis > bazowy) {
+            setZgodne(false);
+            setZdalneNowsze(true);
+            setSync((x) => ({ ...x, stan: "bezczynny", sha: p.sha,
+              blad: "Wstrzymano — w repozytorium pojawiły się nowsze dane." }));
+            return;
+          }
+          sha = p.sha;
+        }
         if (sha == null) {
           const p = await ghPobierz(ustawienia);
           sha = p.sha;
@@ -1083,9 +1100,11 @@ export default function Mockup() {
             if (!zgoda) { setSync({ ...sync, stan: "bezczynny" }); return; }
           }
         }
-        const nowe = await ghZapisz(ustawienia, { schema: SCHEMA, zapis: new Date().toISOString(), dane: stanDoZapisu }, sha);
+        const znacznik = new Date().toISOString();
+        const nowe = await ghZapisz(ustawienia, { schema: SCHEMA, zapis: znacznik, dane: stanDoZapisu }, sha);
         setZgodne(true);
-        setSync({ stan: "gotowe", kiedy: new Date().toISOString(), blad: null, sha: nowe, zdalneLiczby: null });
+        setSync({ stan: "gotowe", kiedy: znacznik, blad: null, sha: nowe,
+          bazaZapis: znacznik, zdalneLiczby: null });
       }
     } catch (e) {
       if (e.message === "KONFLIKT") { setZgodne(false); setZdalneNowsze(true); }
@@ -1100,10 +1119,8 @@ export default function Mockup() {
      a to jedyna operacja w apce zdolna zniszczyć dane. */
   const [zdalneNowsze, setZdalneNowsze] = useState(false);
 
-  useEffect(() => {
-    if (!pierwszy.current) return;
-    pierwszy.current = false;
-    if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
+  function sprawdzZdalne() {
+    if (!ustawienia.token || !ustawienia.repo) return;
     ghPobierz(ustawienia).then(({ dane, sha }) => {
       setSync((p) => ({ ...p, sha }));
       const lokalny = (odczytaj(KLUCZ, {}) || {}).zapis || "";
@@ -1111,15 +1128,32 @@ export default function Mockup() {
       if (dd) {
         const ile = (dd.entries || []).length + (dd.wymiary || []).length
                   + (dd.dania || []).length + (dd.skany || []).length;
-        setSync((p) => ({ ...p, sha, zdalneLiczby: ile }));
+        setSync((p) => ({ ...p, sha, zdalneLiczby: ile, bazaZapis: dane.zapis || "" }));
       }
       /* Zdalne nowsze — urządzenie zostaje w tyle i nie ma prawa wysyłać,
          dopóki człowiek nie zdecyduje. W przeciwnym razie jest zgodne
          i od tej chwili wysyła samo. */
-      if (dane && dane.zapis && (!lokalny || dane.zapis > lokalny)) setZdalneNowsze(true);
-      else setZgodne(true);
+      if (dane && dane.zapis && (!lokalny || dane.zapis > lokalny)) {
+        setZdalneNowsze(true);
+        setZgodne(false);
+      } else setZgodne(true);
     }).catch(() => {});
-  }, []);
+  }
+
+  useEffect(() => {
+    if (pierwszy.current) {
+      pierwszy.current = false;
+      if (ustawienia.autosync) sprawdzZdalne();
+    }
+    /* Powrót do aplikacji po przerwie sprawdza repozytorium ponownie. */
+    const wroc = () => { if (document.visibilityState === "visible" && ustawienia.autosync) sprawdzZdalne(); };
+    document.addEventListener("visibilitychange", wroc);
+    window.addEventListener("focus", wroc);
+    return () => {
+      document.removeEventListener("visibilitychange", wroc);
+      window.removeEventListener("focus", wroc);
+    };
+  }, [ustawienia.autosync, ustawienia.token, ustawienia.repo]);
 
   /* ── Wysyłka automatyczna z bramką ──────────────────────
      Problemem nigdy nie była automatyczność, tylko wysyłanie przez
@@ -1975,7 +2009,8 @@ ZASADY:
         <div className="zdalne">
           <span>W repozytorium są nowsze dane niż na tym urządzeniu — prawdopodobnie z drugiego sprzętu.</span>
           <button className="mini" onClick={() => { setZdalneNowsze(false); synchronizuj("pobierz"); }}>Pobierz je</button>
-          <button className="mini ghost" onClick={() => setZdalneNowsze(false)}>Zostaw</button>
+          <button className="mini ghost" onClick={() => { setZdalneNowsze(false); synchronizuj("wyslij"); }}>Wyślij moje</button>
+          <button className="mini ghost" onClick={() => setZdalneNowsze(false)}>Później</button>
         </div>
       )}
 
@@ -3453,6 +3488,10 @@ ZASADY:
                       disabled={sync.stan === "pracuje"}>Wyślij stąd</button>
               <button className="ghost" onClick={() => synchronizuj("pobierz")}
                       disabled={sync.stan === "pracuje"}>Pobierz zdalne</button>
+              {!zgodne && (
+                <button className="ghost" onClick={() => { setSync((p) => ({ ...p, blad: null })); sprawdzZdalne(); }}>
+                  Sprawdź ponownie</button>
+              )}
               <label className="wyklucz-inline">
                 <input type="checkbox" checked={ustawienia.autosync}
                        onChange={(e) => setUstawienia({ ...ustawienia, autosync: e.target.checked })} />
@@ -3460,6 +3499,10 @@ ZASADY:
               </label>
             </div>
             {sync.stan === "pracuje" && <p className="note">Łączę z GitHubem…</p>}
+            <p className="note">
+              Automat: <b>{zgodne ? "wysyła po każdej zmianie" : "wstrzymany"}</b>.
+              {" "}Wstrzymuje się, gdy w repozytorium pojawią się dane, których to urządzenie nie zna. Wraca po pobraniu zdalnych albo po świadomym wysłaniu stąd.
+            </p>
             {sync.blad && <div className="impbox err"><b>Synchronizacja:</b> {sync.blad}</div>}
             {sync.stan === "gotowe" && !sync.blad &&
               <p className="note">Ostatnio: {String(sync.kiedy).slice(0, 16).replace("T", " ")}</p>}
