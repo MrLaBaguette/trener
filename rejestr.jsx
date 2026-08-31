@@ -6,8 +6,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
    ══════════════════════════════════════════════════════════ */
 
 let MILESTONES = [
-  { date: "2026-08-01", weight: 96.0 },
-  { date: "2026-09-01", weight: 96.0 },
+  { date: "2026-09-01", weight: 95.8 },
   { date: "2026-12-31", weight: 90.0 },
   { date: "2027-03-28", weight: 90.0 },
   { date: "2027-07-25", weight: 82.0 },
@@ -20,7 +19,10 @@ let PHASES = [
   { from: "2027-03-28", to: "2027-07-25", label: "faza 3 · dopięcie", tone: 1 },
 ];
 
-const TARGET = 82.0;
+/* Wartość zapasowa. Właściwy cel bierze się z ostatniego punktu odniesienia
+   w ustawieniach — po wrześniowym skanie może się zmienić razem z masą
+   beztłuszczową, na której stoi cała arytmetyka roadmapy. */
+let TARGET = 82.0;
 let PLAN_KCAL = 2400;
 const KCAL_PER_KG = 7700;
 
@@ -396,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.23";
+const WERSJA_APKI = "1.26";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -464,6 +466,17 @@ function zBase64(b64) {
   return new TextDecoder().decode(bajty);
 }
 
+/* Czy token umie pisać. Sprawdzamy raz, przy pierwszym kontakcie —
+   inaczej apka w trybie podglądu próbowałaby wysyłać i pokazywała
+   czerwony błąd zamiast po prostu nie wysyłać. */
+async function ghUprawnienia(ust) {
+  const r = await fetch(`https://api.github.com/repos/${ust.repo}`, { headers: ghNaglowki(ust.token) });
+  if (!r.ok) return { zapis: false, znane: false };
+  const j = await r.json();
+  const p = j.permissions || {};
+  return { zapis: !!(p.push || p.admin || p.maintain), znane: true };
+}
+
 async function ghPobierz(ust) {
   if (!ust.token || !ust.repo) throw new Error("Brak tokenu albo nazwy repozytorium");
   const url = `https://api.github.com/repos/${ust.repo}/contents/${GH_PLIK}`;
@@ -491,6 +504,8 @@ async function ghZapisz(ust, dane, sha) {
   });
   if (r.status === 409 || r.status === 422)
     throw new Error("KONFLIKT");
+  if (r.status === 403 || r.status === 404)
+    throw new Error("TYLKO_ODCZYT");
   if (!r.ok) throw new Error("Zapis nie przeszedł, błąd " + r.status);
   const j = await r.json();
   return j.content.sha;
@@ -510,6 +525,7 @@ const USTAWIENIA_DOM = {
   pin: "",
   ciemny: false,
   planKcal: 2400,
+  utrzymanie: 2850,
   autosync: true,
   kamienie: [
     { date: "2026-09-01", weight: 95.8 },
@@ -649,7 +665,7 @@ const MINI = Object.fromEntries(
    w Fitness Online; tutaj interesuje nas stan, nie każdy trening. */
 const CYKLE = [
   {
-    id: "obecny", nazwa: "Plan maszynowy", okres: "do 31.08.2026", status: "aktualny",
+    id: "obecny", nazwa: "Plan maszynowy", okres: "do 31.08.2026", od: "2026-05-25", do: "2026-09-01",
     opis: "5 sesji rotacyjnie, oparte na maszynach i wyciągach. Domykany kalibracją kalorii, bez zmian w treningu. Ciężary poniżej to wartości wyjściowe przepisane z Fitness Online.",
     sesje: [
       { l: "A", n: "Push", cw: [
@@ -700,7 +716,7 @@ const CYKLE = [
     ],
   },
   {
-    id: "c1", nazwa: "Cykl 1 · FBW + sporty", okres: "1.09 – 31.10.2026", status: "przyszly",
+    id: "c1", nazwa: "Cykl 1 · FBW + sporty", okres: "1.09 – 31.10.2026", od: "2026-09-01", do: "2026-11-01",
     opis: "4 wyjścia: 2 × FBW + basen + kalistenika/boks. Deficyt 0,40 kg/tydz. Zero serii do upadku na bojach.",
     sesje: [
       { l: "A", n: "FBW A", cw: [
@@ -726,17 +742,17 @@ const CYKLE = [
     ],
   },
   {
-    id: "c2", nazwa: "Cykl 2 · PPL + sport", okres: "1.11 – 31.12.2026", status: "przyszly",
+    id: "c2", nazwa: "Cykl 2 · PPL + sport", okres: "1.11 – 31.12.2026", od: "2026-11-01", do: "2027-01-04",
     opis: "3 × PPL + 1 sport. Deficyt 0,35 kg/tydz. Szczegóły na przeglądzie pod koniec października.",
     sesje: [],
   },
   {
-    id: "c3", nazwa: "Cykl 3 · blok ciężki", okres: "4.01 – 28.03.2027", status: "przyszly",
+    id: "c3", nazwa: "Cykl 3 · blok ciężki", okres: "4.01 – 28.03.2027", od: "2027-01-04", do: "2027-03-29",
     opis: "5 sesji siłowych, zero sportu. Utrzymanie kaloryczne. Boje 4–6 powtórzeń przy RIR 2 — nie schodzimy do RIR 1 przy tym śnie.",
     sesje: [],
   },
   {
-    id: "c4", nazwa: "Cykl 4 · dopięcie", okres: "29.03 – 25.07.2027", status: "przyszly",
+    id: "c4", nazwa: "Cykl 4 · dopięcie", okres: "29.03 – 25.07.2027", od: "2027-03-29", do: "2027-07-26",
     opis: "Te same ćwiczenia i ciężary co w bloku ciężkim, serie ścięte z trzech do dwóch. IV–V: 5 sesji. VI–VII: 3 sesje + basen.",
     sesje: [],
   },
@@ -774,6 +790,14 @@ const SEKCJE = [
 ];
 
 const AGENDA_HORYZONT = 30;
+/* Status cyklu wynika z dat, nie z wpisu w kodzie. Inaczej 1 września
+   apka nadal pokazywałaby sierpniowy plan jako bieżący. */
+function statusCyklu(c, dzis) {
+  if (d(dzis) < d(c.od)) return "przyszly";
+  if (d(dzis) >= d(c.do)) return "miniony";
+  return "aktualny";
+}
+
 const KATEGORIA = {
   pomiar: "co miesiąc · obwody schodzą uczciwiej niż waga",
   test: "siła względem masy ciała",
@@ -969,6 +993,7 @@ export default function Mockup() {
   MILESTONES = ustawienia.kamienie;
   PHASES = ustawienia.fazy;
   PLAN_KCAL = ustawienia.planKcal;
+  TARGET = ustawienia.kamienie[ustawienia.kamienie.length - 1].weight;
 
   const [tab, setTab] = useState("wpis");
   /* Pola formularza tygodniowego. W mockupie były narysowane na sztywno —
@@ -1030,7 +1055,8 @@ export default function Mockup() {
   const [impW, setImpW] = useState(null);
   const [impBlad, setImpBlad] = useState(null);
   const [pod, setPod] = useState("wymiary");
-  const [cyklId, setCyklId] = useState("obecny");
+  const [cyklId, setCyklId] = useState(() =>
+    (CYKLE.find((c) => statusCyklu(c, dzisIso()) === "aktualny") || CYKLE[0]).id);
   const [sesjaL, setSesjaL] = useState("A");
   const [ciezary, setCiezary] = useState(() => {
     const o = {};
@@ -1126,6 +1152,7 @@ export default function Mockup() {
   }
 
   async function synchronizuj(kierunek, auto) {
+    if (kierunek === "wyslij" && tylkoOdczyt) return;
     if (kierunek === "wyslij" && auto && !zgodne) return;
     if (!ustawienia.token || !ustawienia.repo) {
       setSync({ ...sync, stan: "blad", blad: "Uzupełnij repozytorium i token w Ustawieniach." });
@@ -1226,6 +1253,11 @@ export default function Mockup() {
           bazaZapis: znacznik, zdalneLiczby: null });
       }
     } catch (e) {
+      if (e.message === "TYLKO_ODCZYT") {
+        setTylkoOdczyt(true);
+        setSync((p) => ({ ...p, stan: "bezczynny", blad: null }));
+        return;
+      }
       if (e.message === "KONFLIKT") { setZgodne(false); setZdalneNowsze(true); }
       setSync({ ...sync, stan: "blad", blad: e.message === "KONFLIKT"
         ? "Ktoś zapisał w międzyczasie. Pobierz zdalne dane i spróbuj ponownie."
@@ -1237,9 +1269,13 @@ export default function Mockup() {
      Automatyczne pobieranie kasowałoby pracę zrobioną na tym urządzeniu,
      a to jedyna operacja w apce zdolna zniszczyć dane. */
   const [zdalneNowsze, setZdalneNowsze] = useState(false);
+  /* Token bez prawa zapisu. Apka nie wysyła, nie proponuje wysyłania
+     i nie pokazuje tego jako awarii — bo to nie jest awaria. */
+  const [tylkoOdczyt, setTylkoOdczyt] = useState(false);
 
   function sprawdzZdalne() {
     if (!ustawienia.token || !ustawienia.repo) return;
+    ghUprawnienia(ustawienia).then((u) => { if (u.znane) setTylkoOdczyt(!u.zapis); }).catch(() => {});
     ghPobierz(ustawienia).then(({ dane, sha }) => {
       setSync((p) => ({ ...p, sha }));
       const lokalny = (odczytaj(KLUCZ, {}) || {}).zapis || "";
@@ -1288,6 +1324,7 @@ export default function Mockup() {
   const czeka = useRef(false);
 
   function wyslijWTle() {
+    if (tylkoOdczyt) return;
     if (!ustawienia.autosync || !ustawienia.token || !ustawienia.repo) return;
     if (!zgodne) return;
     czeka.current = true;
@@ -1302,6 +1339,7 @@ export default function Mockup() {
      Przy wyjściu domykamy ją natychmiast, bez czekania na odpowiedź. */
   useEffect(() => {
     const domknij = () => {
+      if (tylkoOdczyt) return;
       if (!czeka.current) return;
       clearTimeout(wyslijPozniej.current);
       czeka.current = false;
@@ -1649,6 +1687,17 @@ export default function Mockup() {
     setUstawienia({ ...ustawienia, fazy });
   }
 
+  /* Deficyt wynika z tempa, nie z osobnej liczby: kilogram tłuszczu to
+     około 7700 kcal, więc 0,40 kg tygodniowo znaczy 440 kcal dziennie.
+     Trzymanie obu wartości niezależnie prowadziłoby do cichego rozjazdu. */
+  const tempoTeraz = tempoWFazie(dzisIso(), ustawienia);
+  const deficytZTempa = Math.round((tempoTeraz * KCAL_PER_KG) / 7);
+
+  function zmienKamien(i, pole, wartosc) {
+    const k = ustawienia.kamienie.map((x, j) => (j === i ? { ...x, [pole]: wartosc } : x));
+    setUstawienia({ ...ustawienia, kamienie: k });
+  }
+
   function zmienFaze(i, pole, wartosc) {
     const f = ustawienia.fazy.map((x, j) => (j === i ? { ...x, [pole]: wartosc } : x));
     setUstawienia({ ...ustawienia, fazy: f });
@@ -1918,9 +1967,15 @@ ZASADY:
   const plan = planAt(latest.date);
   const variance = latest.trend - plan;
   const phase = phaseAt(latest.date);
-  const weekNo = Math.round((d(latest.date) - d("2026-09-01")) / 6048e5) + 1;
-  const czasPct = (weekNo / 44) * 100;
-  const celPct = ((96 - latest.trend) / (96 - TARGET)) * 100;
+  const startDat = ustawienia.kamienie[0].date;
+  const celDat = ustawienia.kamienie[ustawienia.kamienie.length - 1].date;
+  const tygodniLacznie = Math.max(1, Math.round((d(celDat) - d(startDat)) / 6048e5));
+  const weekNo = Math.max(1, Math.round((d(latest.date) - d(startDat)) / 6048e5) + 1);
+  const czasPct = Math.min(100, (weekNo / tygodniLacznie) * 100);
+  /* Postęp mierzony od punktu startowego z ustawień, nie od liczby wpisanej
+     w kod — przy starcie z innej wagi procent byłby fikcją. */
+  const start0 = ustawienia.kamienie[0].weight;
+  const celPct = start0 === TARGET ? 0 : ((start0 - latest.trend) / (start0 - TARGET)) * 100;
   const przewaga = celPct - czasPct;
 
   /* Różnice względem ostatniego zapisanego tygodnia — liczone na żywo,
@@ -2179,7 +2234,9 @@ ZASADY:
             )}
           </span>
           <button className="mini" onClick={() => { setZdalneNowsze(false); synchronizuj("pobierz"); }}>Pobierz je</button>
-          <button className="mini ghost" onClick={() => { setZdalneNowsze(false); synchronizuj("wyslij"); }}>Wyślij moje</button>
+          {!tylkoOdczyt && (
+            <button className="mini ghost" onClick={() => { setZdalneNowsze(false); synchronizuj("wyslij"); }}>Wyślij moje</button>
+          )}
           <button className="mini ghost" onClick={() => setZdalneNowsze(false)}>Później</button>
         </div>
       )}
@@ -2201,7 +2258,7 @@ ZASADY:
       <header className="head">
         <div className="eyebrow">
           <span>Ronnie</span><span className="dot" />
-          <span>tydzień {weekNo} z 44</span><span className="dot" />
+          <span>tydzień {weekNo} z {tygodniLacznie}</span><span className="dot" />
           <span>{phase.label}</span>
         </div>
         <div className="ledger cztery">
@@ -2232,15 +2289,15 @@ ZASADY:
         <div className="progress">
           <div className="rings">
             <Ring pct={czasPct} label="czas" tone="t-plan"
-                  hint={`Tydzień ${weekNo} z 44`} />
+                  hint={`Tydzień ${weekNo} z ${tygodniLacznie}`} />
             <Ring pct={celPct} label="cel" tone="t-act"
-                  hint={`${num(96 - latest.trend)} kg z 14 kg do zgubienia`} />
+                  hint={`${num(start0 - latest.trend)} kg z ${num(start0 - TARGET)} kg do zgubienia`} />
           </div>
           <div className="barwrap">
             <div className="bar">
               <div className="bar-fill" style={{ width: `${celPct}%` }} />
             </div>
-            <div className="bar-meta"><span>96,0 kg — start</span><span>82,0 kg — cel 13%</span></div>
+            <div className="bar-meta"><span>{num(start0)} kg — start</span><span>{num(TARGET)} kg — cel 13%</span></div>
             <p className="pnote">
               {variance == null
                 ? "Brak danych do porównania."
@@ -2722,14 +2779,19 @@ ZASADY:
         <div className="exp-tog statyczny">
           <span>Synchronizacja i API</span>
           <span className="tiny-note">
-            {ustawienia.klucz ? "klucz ✓" : "brak klucza"} · {ustawienia.token ? "sync ✓" : "sync off"}
+            {ustawienia.klucz ? "klucz ✓" : "brak klucza"} ·{" "}
+            {tylkoOdczyt ? "podgląd" : ustawienia.token ? "sync ✓" : "sync off"}
           </span>
         </div>
 
         {tab === "ustawienia" && (
           <div className="exp-body">
             <h4 className="ust-h">Klucz API</h4>
-            <p className="note">Potrzebny do kalkulatora makro. Zapisuje się wyłącznie w tej przeglądarce — nigdy w repozytorium z kodem.</p>
+            <p className="note">
+              Potrzebny do kalkulatora makro i odpowiedzi trenera. Zapisuje się wyłącznie
+              w tej przeglądarce — nigdy w repozytorium z kodem.
+              {tylkoOdczyt && " W trybie podglądu zostaw puste: klucz właściciela się nie synchronizuje, a wpisany tutaj byłby rozliczany na twoim koncie."}
+            </p>
             <input className="ust-in" type="password" placeholder="sk-ant-…"
                    value={ustawienia.klucz}
                    onChange={(e) => setUstawienia({ ...ustawienia, klucz: e.target.value })} />
@@ -2746,24 +2808,37 @@ ZASADY:
                        value={ustawienia.token}
                        onChange={(e) => setUstawienia({ ...ustawienia, token: e.target.value.trim() })} /></label>
             </div>
+            {tylkoOdczyt && (
+              <div className="impbox">
+                <b>Tryb podglądu.</b> Ten token pozwala tylko czytać, więc apka niczego
+                nie wysyła. Widzisz stan z ostatniego zapisu właściciela — odświeżasz go
+                przyciskiem „Pobierz zdalne". Zmiany, które zrobisz u siebie, zostają
+                na tym urządzeniu i nigdzie nie trafiają.
+              </div>
+            )}
             <div className="imp-akcje">
-              <button className="primary" onClick={() => synchronizuj("wyslij")}
-                      disabled={sync.stan === "pracuje"}>Wyślij stąd</button>
+              {!tylkoOdczyt && (
+                <button className="primary" onClick={() => synchronizuj("wyslij")}
+                        disabled={sync.stan === "pracuje"}>Wyślij stąd</button>
+              )}
               <button className="ghost" onClick={() => synchronizuj("pobierz")}
                       disabled={sync.stan === "pracuje"}>Pobierz zdalne</button>
               {!zgodne && (
                 <button className="ghost" onClick={() => { setSync((p) => ({ ...p, blad: null })); sprawdzZdalne(); }}>
                   Sprawdź ponownie</button>
               )}
+              {!tylkoOdczyt && (
               <label className="wyklucz-inline">
                 <input type="checkbox" checked={ustawienia.autosync}
                        onChange={(e) => setUstawienia({ ...ustawienia, autosync: e.target.checked })} />
                 pobieraj przy starcie
               </label>
+              )}
             </div>
             {sync.stan === "pracuje" && <p className="note">Łączę z GitHubem…</p>}
             <p className="note">
-              Automat: <b>{zgodne ? "wysyła po każdej zmianie" : "wstrzymany"}</b>.
+              Automat: <b>{tylkoOdczyt ? "wyłączony — tryb podglądu"
+                : zgodne ? "wysyła po każdej zmianie" : "wstrzymany"}</b>.
               {" "}Wstrzymuje się, gdy w repozytorium pojawią się dane, których to urządzenie nie zna. Wraca po pobraniu zdalnych albo po świadomym wysłaniu stąd.
             </p>
             {sync.blad && <div className="impbox err"><b>Synchronizacja:</b> {sync.blad}</div>}
@@ -2806,9 +2881,47 @@ ZASADY:
           <div className="exp-body">
             <h4 className="ust-h">Plan i tempo</h4>
             <p className="note">Reguła z ROADMAP: dwa tygodnie regresu siły z rzędu przy komplecie sesji oznaczają powrót do 0,28 — niezależnie od tego, co pokazuje waga.</p>
-            <label>Kalorie planowane
-              <input className="ust-in short" inputMode="numeric" value={ustawienia.planKcal}
-                     onChange={(e) => setUstawienia({ ...ustawienia, planKcal: parseInt(e.target.value, 10) || 0 })} /></label>
+            <div className="ust-para">
+              <label>Utrzymanie (kcal/dzień)
+                <input className="ust-in" inputMode="numeric" value={ustawienia.utrzymanie}
+                       onChange={(e) => setUstawienia({ ...ustawienia, utrzymanie: parseInt(e.target.value, 10) || 0 })} />
+              </label>
+              <label>Kalorie planowane
+                <input className="ust-in" inputMode="numeric" value={ustawienia.planKcal}
+                       onChange={(e) => setUstawienia({ ...ustawienia, planKcal: parseInt(e.target.value, 10) || 0 })} />
+              </label>
+            </div>
+            <p className="note">
+              Tempo {num(tempoTeraz)} kg/tydz. to deficyt <b>{deficytZTempa} kcal dziennie</b>.
+              Przy utrzymaniu {ustawienia.utrzymanie} daje cel <b>{ustawienia.utrzymanie - deficytZTempa} kcal</b>.
+              {ustawienia.planKcal !== ustawienia.utrzymanie - deficytZTempa && (
+                <>
+                  {" "}Masz wpisane {ustawienia.planKcal}.{" "}
+                  <button className="mini" onClick={() => setUstawienia({ ...ustawienia,
+                    planKcal: ustawienia.utrzymanie - deficytZTempa })}>Wyrównaj</button>
+                </>
+              )}
+            </p>
+            <p className="note">Utrzymanie wpisz z kalibracji, a po kilku tygodniach zastąp je liczbą wyliczoną z trendu w zakładce Postęp — ta jest wiarygodniejsza od kalkulatorów.</p>
+            <h4 className="ust-h">Punkty odniesienia wagi</h4>
+            <p className="note">Na nich stoi linia planu, odchylenie i prognoza w kalendarzu. Pierwszy wiersz to punkt startowy — wpisz tu wagę z dnia rozpoczęcia cyklu, nie wartość z roadmapy sprzed miesięcy. Cel końcowy przelicz po wrześniowym skanie, bo wynika wprost z masy beztłuszczowej.</p>
+            <table className="tbl">
+              <thead><tr><th>Data</th><th>Waga (kg)</th><th /></tr></thead>
+              <tbody>
+                {ustawienia.kamienie.map((k, i) => (
+                  <tr key={i}>
+                    <td><input className="ust-in tiny" type="date" value={k.date}
+                        onChange={(e) => zmienKamien(i, "date", e.target.value)} /></td>
+                    <td className="n"><input className="ust-in tiny" inputMode="decimal" value={k.weight}
+                        onChange={(e) => zmienKamien(i, "weight", parseFloat(String(e.target.value).replace(",", ".")) || 0)} /></td>
+                    <td className="n">{i === 0 ? <em className="tiny-note">start</em>
+                      : i === ustawienia.kamienie.length - 1 ? <em className="tiny-note">cel</em> : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h4 className="ust-h">Fazy i tempo</h4>
             <table className="tbl">
               <thead><tr><th>Faza</th><th>Od</th><th>Do</th><th>kg/tydz.</th></tr></thead>
               <tbody>
@@ -2838,7 +2951,7 @@ ZASADY:
             <div className="subtabs">
               {CYKLE.map((c) => (
                 <button key={c.id}
-                  className={"subtab" + (cyklId === c.id ? " on" : "") + (c.status === "aktualny" ? " biezacy" : "")}
+                  className={"subtab" + (cyklId === c.id ? " on" : "") + (statusCyklu(c, dzisIso()) === "aktualny" ? " biezacy" : "")}
                   onClick={() => { setCyklId(c.id); setSesjaL("A"); setRozwin(null); }}>
                   {c.nazwa.split(" · ")[0]}
                 </button>
@@ -2850,8 +2963,8 @@ ZASADY:
                 <b>{cykl.nazwa}</b>
                 <em>{cykl.okres}</em>
               </div>
-              <span className={"cstan c-" + cykl.status}>
-                {cykl.status === "aktualny" ? "w trakcie" : "zaplanowany"}
+              <span className={"cstan c-" + statusCyklu(cykl, dzisIso())}>
+                {{ aktualny: "w trakcie", miniony: "zamknięty", przyszly: "zaplanowany" }[statusCyklu(cykl, dzisIso())]}
               </span>
             </div>
             <p className="pdesc">{cykl.opis}</p>
@@ -3789,7 +3902,8 @@ ZASADY:
             ` · GitHub ${godzinaZ(sync.kiedy)}`}
           {sync.blad && " · synchronizacja: " + sync.blad}
           {ustawienia.token && ustawienia.repo && !sync.blad &&
-            (zgodne ? " · wysyła sama" : " · automat wstrzymany")}
+            (tylkoOdczyt ? " · tylko podgląd"
+              : zgodne ? " · wysyła sama" : " · automat wstrzymany")}
         </span>
         <span className="foot-dev">
           Invented &amp; designed by <b>Big Dog</b> · engineered by <b>Claude</b> · Łódź 2026
@@ -4512,6 +4626,7 @@ const CSS = `
   text-transform:uppercase;padding:4px 10px;border:1px solid var(--rule);border-radius:99px;
   color:var(--ink-2);white-space:nowrap;flex-shrink:0}
 .c-aktualny{border-color:var(--actual);color:var(--actual)}
+.c-miniony{opacity:.6}
 .seslist{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
 .sesbtn{display:flex;align-items:center;gap:8px;padding:9px 15px;border:1px solid var(--rule);
   border-radius:var(--r-sm);background:var(--paper);cursor:pointer;color:var(--ink-2)}
