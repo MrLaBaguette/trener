@@ -603,7 +603,10 @@ function tempoWFazie(dateStr, ust) {
    W artefakcie się nie załadują (blokada domen), na GitHub Pages tak. */
 const MINI_BASE = "./img/";
 const MINI = Object.fromEntries(
-  ["allahy", "bulgary", "deadhang", "facepull", "farmer", "kolana", "modlitewnik", "ohp", "ohpMasz", "podciaganie", "prostowanieNog", "przysiad", "rdl", "rozpietki", "sciaganie", "skos", "skosMasz", "suwnica", "tricepsKlek", "uginanieMasz", "uginanieNog", "wioslowanie", "wioslowanieMasz", "wyciskanie", "wyciskanieMasz", "wznosHantel", "wznosy"].map((n) => [n, MINI_BASE + n + ".webp"])
+  ["allahy", "bulgary", "deadhang", "facepull", "farmer", "kolana", "modlitewnik", "ohp", "ohpMasz", "podciaganie", "prostowanieNog", "przysiad", "rdl", "rozpietki", "sciaganie", "skos", "skosMasz", "suwnica", "tricepsKlek", "uginanieMasz", "uginanieNog", "wioslowanie", "wioslowanieMasz", "wyciskanie", "wyciskanieMasz", "wznosHantel", "wznosy",
+   "pullover", "tbar", "tricepsV", "uginanieSkos", "wspiecia", "hackSquat",
+   "przywodzenie", "odwodzenie", "dipyGrawitron", "rozpietkiTyl", "jefferson",
+   "uginanieLinka", "tricepsLinka"].map((n) => [n, MINI_BASE + n + ".webp"])
 );
 
 
@@ -620,28 +623,28 @@ const CYKLE = [
         { img: "wznosHantel", n: "Wznosy bokiem hantlami stojąc", s: "3 × 10–15", c: 10, j: "kg" },
         { img: "wyciskanieMasz", n: "Wyciskanie na maszynie leżąc", s: "80 × 8–12 · 60 × 10–15", c: 80, j: "kg" },
         { img: "skos", n: "Wyciskanie hantli, skos 30°", s: "27,5 × 7–10 ×2 · 22,5 × 10–15", c: 27.5, j: "kg" },
-        { img: "", n: "Pullover hantlem", s: "20 × 10–15 ×2 · 10 do upadku", c: 20, j: "kg" },
+        { img: "pullover", n: "Pullover hantlem", s: "20 × 10–15 ×2 · 10 do upadku", c: 20, j: "kg" },
         { img: "rozpietki", n: "Rozpiętki na maszynie siedząc", s: "70 × 10–15 ×2 · 35 do upadku", c: 70, j: "kg" },
         { img: "wznosy", n: "Wznos bokiem jednorącz na wyciągu", s: "klaster 15-8-5", c: 10, j: "kg" },
-        { img: "", n: "Wyprost ramion na wyciągu, uchwyt V", s: "3 × 8–12", c: 30, j: "kg" },
+        { img: "tricepsV", n: "Wyprost ramion na wyciągu, uchwyt V", s: "3 × 8–12", c: 30, j: "kg" },
       ]},
       { l: "B", n: "Pull", cw: [
         { img: "wioslowanieMasz", n: "Wiosłowanie na maszynie siedząc", s: "100 × 8–12 ×2 · 90 × 10–15", c: 100, j: "kg" },
-        { img: "", n: "T-bar row szeroko, na skosie", s: "60 × 7–10 · 50 × 10–15", c: 60, j: "kg" },
+        { img: "tbar", n: "T-bar row szeroko, na skosie", s: "60 × 7–10 · 50 × 10–15", c: 60, j: "kg" },
         { img: "wioslowanieMasz", n: "Wiosłowanie siedząc, uchwyt wąski", s: "80 × 8–12 ×2 · 60 × 10–15", c: 80, j: "kg" },
         { img: "sciaganie", n: "Ściąganie drążka szeroko", s: "70 × 10–15 ×2 · 40 do upadku", c: 70, j: "kg" },
         { img: "facepull", n: "Face pull na linkach stojąc", s: "11 × 10–15 ×2 · 5,5 do upadku", c: 11, j: "kg" },
-        { img: "", n: "Uginanie hantlami na skosie, naprzemiennie", s: "3 × 8–12", c: 10, j: "kg" },
+        { img: "uginanieSkos", n: "Uginanie hantlami na skosie, naprzemiennie", s: "3 × 8–12", c: 10, j: "kg" },
         { img: "uginanieMasz", n: "Uginanie ramion na maszynie", s: "25 × 15–20 ×2 · 15 do upadku", c: 25, j: "kg" },
       ]},
       { l: "C", n: "Legs", cw: [
-        { img: "", n: "Wspięcia na palce siedząc", s: "3 × 10–15", c: 70, j: "kg" },
+        { img: "wspiecia", n: "Wspięcia na palce siedząc", s: "3 × 10–15", c: 70, j: "kg" },
         { img: "uginanieNog", n: "Uginanie nóg leżąc", s: "80 × 7–10 ×2 · 60 × 10–15", c: 80, j: "kg" },
-        { img: "", n: "Reverse hack squat", s: "50 × 7–10 · 40 × 10–15", c: 50, j: "kg" },
+        { img: "hackSquat", n: "Reverse hack squat", s: "50 × 7–10 · 40 × 10–15", c: 50, j: "kg" },
         { img: "suwnica", n: "Suwnica, szeroka pozycja stóp", s: "140 × 10–15, potem klaster 120", c: 140, j: "kg" },
         { img: "prostowanieNog", n: "Prostowanie nóg siedząc", s: "100 × 7–10 · 80 × 10–15, potem klaster 60", c: 100, j: "kg" },
-        { img: "", n: "Przywodzenie ud na maszynie", s: "60 × 10–15 · 50 × 15–20", c: 60, j: "kg" },
-        { img: "", n: "Odwodzenie ud na maszynie", s: "80 × 10–15 · 60 × 15–20", c: 80, j: "kg" },
+        { img: "przywodzenie", n: "Przywodzenie ud na maszynie", s: "60 × 10–15 · 50 × 15–20", c: 60, j: "kg" },
+        { img: "odwodzenie", n: "Odwodzenie ud na maszynie", s: "80 × 10–15 · 60 × 15–20", c: 80, j: "kg" },
       ]},
       { l: "D", n: "Chest & Back", cw: [
         { img: "wioslowanieMasz", n: "Wiosłowanie na maszynie siedząc", s: "100 × 8–12 ×2 · 80 × 10–15", c: 100, j: "kg" },
@@ -649,17 +652,17 @@ const CYKLE = [
         { img: "sciaganie", n: "Ściąganie drążka, uchwyt wąski", s: "70 × 10–15 ×2 · 40 do upadku", c: 70, j: "kg" },
         { img: "wyciskanieMasz", n: "Wyciskanie na maszynie leżąc", s: "100 × 8–12 · 80 × 10–15", c: 100, j: "kg" },
         { img: "wioslowanie", n: "Wiosłowanie jednorącz na wyciągu", s: "30 × 8–12 · 25 × 10–15", c: 30, j: "kg" },
-        { img: "", n: "Dipy na klatkę w grawitronie", s: "3 × 8–10, asysta", c: 20, j: "kg" },
-        { img: "", n: "Jefferson / Zercher curl", s: "40 × 8–12 ×2 · 40 + dobicie", c: 40, j: "kg" },
+        { img: "dipyGrawitron", n: "Dipy na klatkę w grawitronie", s: "3 × 8–10, asysta", c: 20, j: "kg" },
+        { img: "jefferson", n: "Jefferson / Zercher curl", s: "40 × 8–12 ×2 · 40 + dobicie", c: 40, j: "kg" },
       ]},
       { l: "E", n: "Delt & Arms", cw: [
         { img: "wznosy", n: "Wznosy bokiem na maszynie", s: "15 × 8–12 ×2 · 10 × 12–15", c: 15, j: "kg" },
-        { img: "", n: "Uginanie ramion linką, uchwyt wewnętrzny", s: "29 × 10–15 ×2 · 20 do upadku", c: 29, j: "kg" },
-        { img: "", n: "Wyprost ramion na wyciągu", s: "22 × 10–15 ×2 · 18 do upadku", c: 22, j: "kg" },
+        { img: "uginanieLinka", n: "Uginanie ramion linką, uchwyt wewnętrzny", s: "29 × 10–15 ×2 · 20 do upadku", c: 29, j: "kg" },
+        { img: "tricepsLinka", n: "Wyprost ramion na wyciągu", s: "22 × 10–15 ×2 · 18 do upadku", c: 22, j: "kg" },
         { img: "ohpMasz", n: "Wyciskanie nad głowę na maszynie", s: "60 × 7–10 ×2 · 50 × 10–15", c: 60, j: "kg" },
         { img: "uginanieMasz", n: "Uginanie ramion na maszynie", s: "25 × 10–15, potem klaster 20", c: 25, j: "kg" },
         { img: "tricepsKlek", n: "Wyprost ramion linkami zza głowy, w klęku", s: "35 × 15, potem klaster 35", c: 35, j: "kg" },
-        { img: "", n: "Rozpiętki tyłem na skosie, hantle", s: "6 × 10–15 ×2 · 4 do upadku", c: 6, j: "kg" },
+        { img: "rozpietkiTyl", n: "Rozpiętki tyłem na skosie, hantle", s: "6 × 10–15 ×2 · 4 do upadku", c: 6, j: "kg" },
       ]},
     ],
   },
@@ -1152,7 +1155,11 @@ export default function Mockup() {
             if (!zgoda) { setSync({ ...sync, stan: "bezczynny" }); return; }
           }
         }
-        const znacznik = new Date().toISOString();
+        /* Znacznik bierzemy z pamięci lokalnej, nie z zegara. Świeży czas
+           wysyłki byłby zawsze nowszy od zapisanego lokalnie, więc przy
+           kolejnym otwarciu apka uznawałaby zdalne za nowsze — mimo że
+           zawierają dokładnie to samo. */
+        const znacznik = (odczytaj(KLUCZ, {}) || {}).zapis || new Date().toISOString();
         const nowe = await ghZapisz(ustawienia, { schema: SCHEMA, zapis: znacznik, dane: stanDoZapisu }, sha);
         setZgodne(true);
         setSync({ stan: "gotowe", kiedy: znacznik, blad: null, sha: nowe,
@@ -1244,7 +1251,9 @@ export default function Mockup() {
           headers: { ...ghNaglowki(ustawienia.token), "Content-Type": "application/json" },
           body: JSON.stringify({
             message: "Rejestr — zamknięcie karty",
-            content: doBase64(JSON.stringify({ schema: SCHEMA, zapis: new Date().toISOString(), dane: stanDoZapisu }, null, 2)),
+            content: doBase64(JSON.stringify({ schema: SCHEMA,
+              zapis: (odczytaj(KLUCZ, {}) || {}).zapis || new Date().toISOString(),
+              dane: stanDoZapisu }, null, 2)),
             sha: sync.sha || undefined,
           }),
         });
