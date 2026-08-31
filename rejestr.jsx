@@ -614,37 +614,58 @@ const MINI = Object.fromEntries(
 const CYKLE = [
   {
     id: "obecny", nazwa: "Plan maszynowy", okres: "do 31.08.2026", status: "aktualny",
-    opis: "5 sesji, maszyny. Domykany kalibracją kalorii, bez zmian w treningu.",
+    opis: "5 sesji rotacyjnie, oparte na maszynach i wyciągach. Domykany kalibracją kalorii, bez zmian w treningu. Ciężary poniżej to wartości wyjściowe przepisane z Fitness Online.",
     sesje: [
       { l: "A", n: "Push", cw: [
-        { img: "wyciskanieMasz", n: "Wyciskanie na maszynie", s: "4 × 8–10", c: 60, j: "kg" },
-        { img: "ohpMasz", n: "Wyciskanie żołnierskie, maszyna", s: "3 × 10–12", c: 40, j: "kg" },
-        { img: "rozpietki", n: "Rozpiętki na bramie", s: "3 × 12–15", c: 20, j: "kg" },
-        { img: "tricepsKlek", n: "Wyprost zza głowy w klęku", s: "klaster 15-8-5", c: 25, j: "kg" },
+        { img: "wznosHantel", n: "Wznosy bokiem hantlami stojąc", s: "3 × 10–15", c: 10, j: "kg" },
+        { img: "wyciskanieMasz", n: "Wyciskanie na maszynie leżąc", s: "80 × 8–12 · 60 × 10–15", c: 80, j: "kg" },
+        { img: "skos", n: "Wyciskanie hantli, skos 30°", s: "27,5 × 7–10 ×2 · 22,5 × 10–15", c: 27.5, j: "kg" },
+        { img: "", n: "Pullover hantlem", s: "20 × 10–15 ×2 · 10 do upadku", c: 20, j: "kg" },
+        { img: "rozpietki", n: "Rozpiętki na maszynie siedząc", s: "70 × 10–15 ×2 · 35 do upadku", c: 70, j: "kg" },
+        { img: "wznosy", n: "Wznos bokiem jednorącz na wyciągu", s: "klaster 15-8-5", c: 10, j: "kg" },
+        { img: "", n: "Wyprost ramion na wyciągu, uchwyt V", s: "3 × 8–12", c: 30, j: "kg" },
       ]},
       { l: "B", n: "Pull", cw: [
-        { img: "sciaganie", n: "Ściąganie drążka", s: "4 × 8–10", c: 70, j: "kg" },
-        { img: "wioslowanieMasz", n: "Wiosłowanie na maszynie", s: "3 × 10–12", c: 60, j: "kg" },
-        { img: "uginanieMasz", n: "Uginanie na maszynie", s: "klaster 15-8-5", c: 30, j: "kg" },
+        { img: "wioslowanieMasz", n: "Wiosłowanie na maszynie siedząc", s: "100 × 8–12 ×2 · 90 × 10–15", c: 100, j: "kg" },
+        { img: "", n: "T-bar row szeroko, na skosie", s: "60 × 7–10 · 50 × 10–15", c: 60, j: "kg" },
+        { img: "wioslowanieMasz", n: "Wiosłowanie siedząc, uchwyt wąski", s: "80 × 8–12 ×2 · 60 × 10–15", c: 80, j: "kg" },
+        { img: "sciaganie", n: "Ściąganie drążka szeroko", s: "70 × 10–15 ×2 · 40 do upadku", c: 70, j: "kg" },
+        { img: "facepull", n: "Face pull na linkach stojąc", s: "11 × 10–15 ×2 · 5,5 do upadku", c: 11, j: "kg" },
+        { img: "", n: "Uginanie hantlami na skosie, naprzemiennie", s: "3 × 8–12", c: 10, j: "kg" },
+        { img: "uginanieMasz", n: "Uginanie ramion na maszynie", s: "25 × 15–20 ×2 · 15 do upadku", c: 25, j: "kg" },
       ]},
       { l: "C", n: "Legs", cw: [
-        { img: "suwnica", n: "Suwnica", s: "klaster 15-8-5", c: 140, j: "kg" },
-        { img: "prostowanieNog", n: "Prostowanie nóg", s: "klaster 15-8-5", c: 50, j: "kg" },
-        { img: "uginanieNog", n: "Uginanie nóg leżąc", s: "3 × 10–12", c: 45, j: "kg" },
+        { img: "", n: "Wspięcia na palce siedząc", s: "3 × 10–15", c: 70, j: "kg" },
+        { img: "uginanieNog", n: "Uginanie nóg leżąc", s: "80 × 7–10 ×2 · 60 × 10–15", c: 80, j: "kg" },
+        { img: "", n: "Reverse hack squat", s: "50 × 7–10 · 40 × 10–15", c: 50, j: "kg" },
+        { img: "suwnica", n: "Suwnica, szeroka pozycja stóp", s: "140 × 10–15, potem klaster 120", c: 140, j: "kg" },
+        { img: "prostowanieNog", n: "Prostowanie nóg siedząc", s: "100 × 7–10 · 80 × 10–15, potem klaster 60", c: 100, j: "kg" },
+        { img: "", n: "Przywodzenie ud na maszynie", s: "60 × 10–15 · 50 × 15–20", c: 60, j: "kg" },
+        { img: "", n: "Odwodzenie ud na maszynie", s: "80 × 10–15 · 60 × 15–20", c: 80, j: "kg" },
       ]},
       { l: "D", n: "Chest & Back", cw: [
-        { img: "skosMasz", n: "Wyciskanie skos, maszyna", s: "4 × 8–10", c: 50, j: "kg" },
-        { img: "sciaganie", n: "Ściąganie wąsko", s: "3 × 10–12", c: 65, j: "kg" },
+        { img: "wioslowanieMasz", n: "Wiosłowanie na maszynie siedząc", s: "100 × 8–12 ×2 · 80 × 10–15", c: 100, j: "kg" },
+        { img: "skosMasz", n: "Wyciskanie na maszynie, skos dodatni", s: "90 × 7–10 ×2 · 80 × 10–15", c: 90, j: "kg" },
+        { img: "sciaganie", n: "Ściąganie drążka, uchwyt wąski", s: "70 × 10–15 ×2 · 40 do upadku", c: 70, j: "kg" },
+        { img: "wyciskanieMasz", n: "Wyciskanie na maszynie leżąc", s: "100 × 8–12 · 80 × 10–15", c: 100, j: "kg" },
+        { img: "wioslowanie", n: "Wiosłowanie jednorącz na wyciągu", s: "30 × 8–12 · 25 × 10–15", c: 30, j: "kg" },
+        { img: "", n: "Dipy na klatkę w grawitronie", s: "3 × 8–10, asysta", c: 20, j: "kg" },
+        { img: "", n: "Jefferson / Zercher curl", s: "40 × 8–12 ×2 · 40 + dobicie", c: 40, j: "kg" },
       ]},
       { l: "E", n: "Delt & Arms", cw: [
-        { img: "wznosHantel", n: "Wznos jednorącz", s: "klaster 15-8-5", c: 10, j: "kg" },
-        { img: "facepull", n: "Face pull", s: "3 × 12–15", c: 25, j: "kg" },
+        { img: "wznosy", n: "Wznosy bokiem na maszynie", s: "15 × 8–12 ×2 · 10 × 12–15", c: 15, j: "kg" },
+        { img: "", n: "Uginanie ramion linką, uchwyt wewnętrzny", s: "29 × 10–15 ×2 · 20 do upadku", c: 29, j: "kg" },
+        { img: "", n: "Wyprost ramion na wyciągu", s: "22 × 10–15 ×2 · 18 do upadku", c: 22, j: "kg" },
+        { img: "ohpMasz", n: "Wyciskanie nad głowę na maszynie", s: "60 × 7–10 ×2 · 50 × 10–15", c: 60, j: "kg" },
+        { img: "uginanieMasz", n: "Uginanie ramion na maszynie", s: "25 × 10–15, potem klaster 20", c: 25, j: "kg" },
+        { img: "tricepsKlek", n: "Wyprost ramion linkami zza głowy, w klęku", s: "35 × 15, potem klaster 35", c: 35, j: "kg" },
+        { img: "", n: "Rozpiętki tyłem na skosie, hantle", s: "6 × 10–15 ×2 · 4 do upadku", c: 6, j: "kg" },
       ]},
     ],
   },
   {
     id: "c1", nazwa: "Cykl 1 · FBW + sporty", okres: "1.09 – 31.10.2026", status: "przyszly",
-    opis: "4 wyjścia: 2 × FBW + basen + kalistenika/boks. Deficyt 0,28 kg/tydz. Zero serii do upadku na bojach.",
+    opis: "4 wyjścia: 2 × FBW + basen + kalistenika/boks. Deficyt 0,40 kg/tydz. Zero serii do upadku na bojach.",
     sesje: [
       { l: "A", n: "FBW A", cw: [
         { img: "przysiad", n: "Przysiad (goblet → sztanga)", s: "3 × 6–10", r: 2, c: null, j: "kg" },
@@ -657,7 +678,8 @@ const CYKLE = [
         { img: "deadhang", n: "Deadhang", s: "2 × 30 s", c: null, j: "s" },
       ]},
       { l: "B", n: "FBW B", cw: [
-        { img: "rdl", n: "RDL lub bułgary (naprzemiennie)", s: "3 × 8–10", r: 2, c: null, j: "kg" },
+        { img: "rdl", n: "RDL ze sztangą — tydzień nieparzysty", s: "3 × 8–10", r: 2, c: null, j: "kg" },
+        { img: "bulgary", n: "Bułgary — tydzień parzysty", s: "3 × 8–10", r: 2, c: null, j: "kg" },
         { img: "podciaganie", n: "Podciąganie (paski)", s: "3 × maks−2", c: null, j: "powt." },
         { img: "skos", n: "Wyciskanie hantli, skos", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "facepull", n: "Face pull", s: "3 × 12–15", r: 2, c: null, j: "kg" },
@@ -684,12 +706,9 @@ const CYKLE = [
   },
 ];
 
-/* Historia zmian obciążenia — jeden wpis na zmianę, nie na sesję. */
-const HISTORIA_START = {
-  "Suwnica": [{ d: "2026-06-02", c: 120 }, { d: "2026-07-08", c: 130 }, { d: "2026-08-04", c: 140 }],
-  "Ściąganie drążka": [{ d: "2026-06-10", c: 60 }, { d: "2026-07-15", c: 65 }, { d: "2026-08-09", c: 70 }],
-  "Wyciskanie na maszynie": [{ d: "2026-06-15", c: 52.5 }, { d: "2026-07-20", c: 57.5 }, { d: "2026-08-11", c: 60 }],
-};
+/* Historia zmian obciążenia — jeden wpis na zmianę, nie na sesję.
+   Pusta na starcie: pierwszy wpis powstaje, gdy faktycznie dołożysz ciężar. */
+const HISTORIA_START = {};
 
 /* Nawigacja dwupoziomowa: sekcja -> podzakładka.
    Osiem pozycji w jednym rzędzie przestało się mieścić. */
