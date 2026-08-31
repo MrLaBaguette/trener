@@ -478,7 +478,7 @@ async function ghPobierz(ust) {
 async function ghZapisz(ust, dane, sha) {
   const url = `https://api.github.com/repos/${ust.repo}/contents/${GH_PLIK}`;
   const body = {
-    message: "Rejestr — " + chwilaZ(new Date().toISOString()),
+    message: "Ronnie — " + chwilaZ(new Date().toISOString()),
     content: doBase64(JSON.stringify(dane, null, 2)),
   };
   if (sha) body.sha = sha;
@@ -1281,7 +1281,7 @@ export default function Mockup() {
           method: "PUT", keepalive: true,
           headers: { ...ghNaglowki(ustawienia.token), "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: "Rejestr — zamknięcie karty",
+            message: "Ronnie — zamknięcie karty",
             content: doBase64(JSON.stringify({ schema: SCHEMA,
               zapis: (odczytaj(KLUCZ, {}) || {}).zapis || new Date().toISOString(),
               dane: stanDoZapisu }, null, 2)),
@@ -2123,7 +2123,7 @@ ZASADY:
       <div className={"rej" + (dark ? " dark" : "")}>
         <style>{CSS}</style>
         <div className="pinbox">
-          <b>Rejestr projektu</b>
+          <b>Ronnie</b>
           <input className="ust-in short" type="password" inputMode="numeric" maxLength={4}
                  autoFocus placeholder="PIN" value={pinWpis}
                  onChange={(e) => {
@@ -2166,7 +2166,7 @@ ZASADY:
 
       <header className="head">
         <div className="eyebrow">
-          <span>Rejestr projektu</span><span className="dot" />
+          <span>Ronnie</span><span className="dot" />
           <span>tydzień {weekNo} z 44</span><span className="dot" />
           <span>{phase.label}</span>
         </div>
@@ -3798,7 +3798,7 @@ function alarmy(typ) {
 function budujIcs(lista) {
   const teraz = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const linie = [
-    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Rejestr projektu//PL", "CALSCALE:GREGORIAN",
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Ronnie//PL", "CALSCALE:GREGORIAN",
   ];
   lista.forEach((w, i) => {
     linie.push(
