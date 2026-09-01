@@ -398,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.27";
+const WERSJA_APKI = "1.28";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -2725,6 +2725,16 @@ ZASADY:
             </div>
             <div className="exp-row">
               <div className="exp-txt">
+                <b>Eksport dziennika do .md</b>
+                <em>Wszystkie tygodnie po kolei, chronologicznie: liczby, notatki i komentarze trenera w jednym pliku.
+                  Do wklejenia w czacie trenera przy przeglądzie cyklu.</em>
+              </div>
+              <button className="primary" onClick={() => {
+                pobierzMd(budujDziennikMd(ENTRIES, COMMENTS), `dziennik-${dzisIso()}.md`);
+              }}>Eksportuj .md</button>
+            </div>
+            <div className="exp-row">
+              <div className="exp-txt">
                 <b>Odzyskanie danych</b>
                 <em>Z pliku eksportu albo z historii repozytorium. Podgląd przed zapisem — nic nie wchodzi po cichu.</em>
               </div>
@@ -4014,6 +4024,47 @@ function stanDoPliku(stan) {
 
 function pobierzJson(dane, nazwa) {
   const blob = new Blob([JSON.stringify(dane, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nazwa;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ── eksport dziennika do .md ──────────────────────────────────
+   Całość jednym plikiem, chronologicznie — nie po jednym tygodniu.
+   Do wklejenia w czacie trenera przy przeglądzie cyklu. Funkcja
+   modułowa: dostaje entries i komentarze jako argumenty, nie sięga
+   po stan komponentu. */
+function budujDziennikMd(entries, komentarze) {
+  const wpis = (e) => {
+    const kom = komentarze[e.date];
+    const linie = [
+      `## ${e.date}`,
+      "",
+      `- Waga: ${num(e.weight)} kg`,
+      `- Pas: ${e.waist != null ? e.waist + " cm" : "—"}`,
+      `- Sen: ${e.sleep}/5`,
+      `- Sesje FBW: ${e.fbw}`,
+      `- Siła: ${SILA[Math.max(0, e.sila - 1)]}`,
+      `- Kalorie: ${e.kcal}`,
+      `- Aktywności: ${(e.acts || []).length ? e.acts.join(", ") : "—"}`,
+      `- Cheat posiłki: ${e.cheats}`,
+    ];
+    if (e.note) linie.push("", `Notatka: „${e.note}"`);
+    if (kom) {
+      linie.push("", "**Ronnie:**", "");
+      kom.split("\n\n").forEach((p) => linie.push(p, ""));
+      linie.pop();
+    }
+    return linie.join("\n");
+  };
+  const naglowek = [`# Dziennik — Ronnie`, "", `Eksport: ${dzisIso()}`, `Tygodni: ${entries.length}`].join("\n");
+  return naglowek + "\n\n" + entries.map(wpis).join("\n\n---\n\n") + "\n";
+}
+
+function pobierzMd(tresc, nazwa) {
+  const blob = new Blob([tresc], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = nazwa;
