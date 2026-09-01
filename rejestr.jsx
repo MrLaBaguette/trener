@@ -398,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.28";
+const WERSJA_APKI = "1.29";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -925,6 +925,20 @@ const DANIA_INIT = [];
 const d = (s) => new Date(s + "T00:00:00").getTime();
 const num = (v, p = 1) =>
   v === null || v === undefined || Number.isNaN(v) ? "—" : v.toFixed(p).replace(".", ",");
+
+/* Pola porównywane ilościowo przy synchronizacji — jedna lista używana
+   zarówno do ostrzeżenia "co zniknie" przed pobraniem, jak i do bramki
+   zgodności przed automatyczną wysyłką. Brak "zapisane" (obliczenia
+   z kalkulatora makro) w tym drugim miejscu pozwalał urządzeniu bez
+   najnowszych przepisów po cichu nadpisać bogatszy stan w repozytorium. */
+const POLA_ILOSCIOWE = [
+  ["entries", "tygodni"], ["wymiary", "pomiarów wymiarów"], ["dania", "dań"],
+  ["skany", "skanów"], ["testy", "testów"], ["zapisane", "obliczeń makro"],
+  ["wydarzenia", "wydarzeń"],
+];
+function sumaIlosci(dane) {
+  return POLA_ILOSCIOWE.reduce((s, [k]) => s + ((dane && dane[k]) || []).length, 0);
+}
 const signed = (v, p = 1) => {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   const t = Math.abs(v).toFixed(p).replace(".", ",");
@@ -974,7 +988,10 @@ export default function Mockup() {
   const z = (nazwa, dom) => (zapisany && zapisany[nazwa] !== undefined ? zapisany[nazwa] : dom);
 
   const [ustawienia, setUstawienia] = useState(() =>
-    ({ ...USTAWIENIA_DOM, ...odczytaj(KLUCZ_USTAWIENIA, {}) }));
+    /* Plan (kamienie, tempo, kalorie) idzie ostatni — czyta się z worka
+       synchronizowanego przez GitHub, więc bije lokalny zapis ustawień,
+       który na drugim urządzeniu bywa sprzed ostatniej zmiany planu. */
+    ({ ...USTAWIENIA_DOM, ...odczytaj(KLUCZ_USTAWIENIA, {}), ...((zapisany && zapisany.plan) || {}) }));
 
   const [ENTRIES, setEntries]     = useState(() => z("entries", ENTRIES_INIT));
   const [COMMENTS, setComments]   = useState(() => z("comments", COMMENTS_INIT));
@@ -1086,8 +1103,15 @@ export default function Mockup() {
     cardio: CARDIO, spiro: SPIRO, krew: KREW, krewBraki: KREW_BRAKI,
     skany: SCANS, dania: DANIA, dzienne: DZIENNE, wydarzenia: WYDARZENIA,
     ciezary, historia, zapisane,
+    /* Tempo i kamienie milowe to dane projektu, nie ustawienia urządzenia —
+       muszą wędrować między telefonem a komputerem tak samo jak tygodnie.
+       Reszta worka "ustawienia" (klucz API, token, PIN) zostaje lokalnie,
+       więc trzymamy plan osobno zamiast wrzucać całe `ustawienia`. */
+    plan: { planKcal: ustawienia.planKcal, utrzymanie: ustawienia.utrzymanie,
+            kamienie: ustawienia.kamienie, fazy: ustawienia.fazy },
   }), [ENTRIES, COMMENTS, WYMIARY, TESTY, CARDIO, SPIRO, KREW, KREW_BRAKI,
-       SCANS, DANIA, DZIENNE, WYDARZENIA, ciezary, historia, zapisane]);
+       SCANS, DANIA, DZIENNE, WYDARZENIA, ciezary, historia, zapisane,
+       ustawienia.planKcal, ustawienia.utrzymanie, ustawienia.kamienie, ustawienia.fazy]);
 
   const [zapisBlad, setZapisBlad] = useState(null);
   const pierwszy = useRef(true);
@@ -1122,13 +1146,8 @@ export default function Mockup() {
      nowsze — a nowsze bywa uboższe, gdy drugie urządzenie zapisało coś po
      tym, jak przestało wysyłać. */
   function coZniknie(tu, tam) {
-    const pola = [
-      ["entries", "tygodni"], ["wymiary", "pomiarów wymiarów"], ["dania", "dań"],
-      ["skany", "skanów"], ["testy", "testów"], ["zapisane", "obliczeń makro"],
-      ["wydarzenia", "wydarzeń"],
-    ];
     const out = [];
-    pola.forEach(([k, l]) => {
+    POLA_ILOSCIOWE.forEach(([k, l]) => {
       const a = (tu[k] || []).length, b = (tam[k] || []).length;
       if (a > b) out.push(`${a - b} ${l} (tu ${a}, tam ${b})`);
     });
@@ -1152,6 +1171,9 @@ export default function Mockup() {
     if (dane.ciezary) setCiezary(dane.ciezary);
     if (dane.historia) setHistoria(dane.historia);
     if (dane.zapisane) setZapisane(dane.zapisane);
+    /* Plan jest zaszyty w ustawieniach urządzenia razem z kluczem API i
+       tokenem — scalamy tylko te cztery pola, żeby ich nie nadpisać. */
+    if (dane.plan) setUstawienia((u) => ({ ...u, ...dane.plan }));
   }
 
   async function synchronizuj(kierunek, auto) {
@@ -1234,8 +1256,7 @@ export default function Mockup() {
         /* Wysyłka uboższego stanu to najczęstsza droga do utraty danych:
            urządzenie otwarte pierwszy raz kasuje dorobek z drugiego. */
         if (sync.zdalneLiczby) {
-          const tu = (stanDoZapisu.entries || []).length + (stanDoZapisu.wymiary || []).length
-                   + (stanDoZapisu.dania || []).length + (stanDoZapisu.skany || []).length;
+          const tu = sumaIlosci(stanDoZapisu);
           if (tu < sync.zdalneLiczby) {
             if (auto) { setZgodne(false); setZdalneNowsze(true); setSync({ ...sync, stan: "bezczynny" }); return; }
             const zgoda = window.confirm(
@@ -1284,8 +1305,7 @@ export default function Mockup() {
       const lokalny = (odczytaj(KLUCZ, {}) || {}).zapis || "";
       const dd = dane && (dane.dane || dane);
       if (dd) {
-        const ile = (dd.entries || []).length + (dd.wymiary || []).length
-                  + (dd.dania || []).length + (dd.skany || []).length;
+        const ile = sumaIlosci(dd);
         setSync((p) => ({ ...p, sha, zdalneLiczby: ile, zdalneStan: dd, bazaZapis: dane.zapis || "" }));
       }
       /* Zdalne nowsze — urządzenie zostaje w tyle i nie ma prawa wysyłać,
