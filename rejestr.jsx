@@ -398,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.29";
+const WERSJA_APKI = "1.30";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -908,7 +908,17 @@ const SPIRO_INIT = [];
    "prog" = na granicy zakresu, "gora" = przy górnej granicy. */
 const KREW_INIT = [];
 
-const KREW_BRAKI_INIT = [];
+/* Świadome luki w baseline, nie zapomniane pozycje. Lista jest stała
+   w kodzie — nie ma UI do jej edycji, więc pusta tablica w zapisanym
+   stanie znaczy „stara wersja apki", a nie „człowiek to wyczyścił".
+   Stąd fallback przy wczytywaniu: pusta tablica ustępuje tej liście. */
+const KREW_BRAKI_INIT = [
+  { n: "Ferrytyna + żelazo", czemu: "spadek energii na deficycie bywa niedoborem żelaza; jedyna luka w baseline" },
+  { n: "FT3 z TSH", czemu: "obniżone FT3 po kilkunastu tygodniach deficytu to normalna adaptacja — warto mieć punkt odniesienia" },
+  { n: "Testosteron całkowity + SHBG", czemu: "deficyt i skrócony sen obniżają go niezależnie; zastępczo wychwytują to DEXA i test sprawnościowy" },
+  { n: "HbA1c", czemu: "wrażliwość insulinowa rośnie wraz z ubytkiem tłuszczu trzewnego" },
+  { n: "CRP", czemu: "tani marker stanu zapalnego jako tło" },
+];
 
 const WYMIARY_INIT = [];
 
@@ -944,6 +954,106 @@ const signed = (v, p = 1) => {
   const t = Math.abs(v).toFixed(p).replace(".", ",");
   return parseFloat(t.replace(",", ".")) === 0 ? "0" + (p ? "," + "0".repeat(p) : "") : (v > 0 ? "+" : "−") + t;
 };
+
+/* ── Krew: porównanie między pobraniami ────────────────────
+   Wyniki bywają nieliczbowe („ujemny", „<0,3", „ślad") — wtedy różnicy
+   nie liczymy wcale, zamiast udawać zero. Wszystko poniżej to funkcje
+   modułowe: dostają dane argumentem i nie sięgają po stan komponentu.
+   ────────────────────────────────────────────────────────── */
+
+function liczbaZ(w) {
+  const s = String(w == null ? "" : w).trim().replace(",", ".");
+  /* Sam czysty zapis liczby. „<0,3" albo „ujemny" świadomie odpada —
+     porównywanie takich wartości dałoby fałszywy odczyt. */
+  if (!/^-?\d+(\.\d+)?$/.test(s)) return null;
+  const v = parseFloat(s);
+  return Number.isFinite(v) ? v : null;
+}
+
+/* Liczba miejsc po przecinku bierze się z samego wyniku. Kreatynina
+   idzie na dwóch, ferrytyna na zerze — sztywne jedno miejsce albo
+   gubiłoby zmianę, albo dorysowywało precyzję, której nie ma. */
+function miejscaPo(...wartosci) {
+  const n = wartosci.reduce((max, w) => {
+    const m = String(w == null ? "" : w).match(/[.,](\d+)/);
+    return Math.max(max, m ? m[1].length : 0);
+  }, 0);
+  return Math.min(2, n);
+}
+
+/* Różnica względem poprzedniego pobrania, w którym parametr wystąpił.
+   Bez kolorowania: w morfologii kierunek nie znaczy tego samego dla
+   każdej pozycji — HDL w górę jest dobrze, LDL w górę źle. Kolor
+   sugerowałby ocenę, a ta należy do lekarza. */
+function zmianaKrwi(teraz, poprzednio) {
+  const a = liczbaZ(teraz), b = liczbaZ(poprzednio);
+  if (a === null || b === null) return null;
+  return signed(a - b, miejscaPo(teraz, poprzednio));
+}
+
+/* Pobrania w kolejności dat plus przekrój po parametrach: jeden wpis
+   na nazwę badania, w środku punkty ze wszystkich pobrań, w których
+   ta nazwa wystąpiła. Dopasowanie po nazwie, zgodnie z zadaniem. */
+function krewPrzekroj(krew) {
+  const grupy = [...(krew || [])].sort((a, b) => (a.data < b.data ? -1 : 1));
+  const mapa = new Map();
+  grupy.forEach((g) => (g.poz || []).forEach((p) => {
+    if (!mapa.has(p.n)) mapa.set(p.n, { n: p.n, j: p.j || "", punkty: [] });
+    const wpis = mapa.get(p.n);
+    if (!wpis.j && p.j) wpis.j = p.j;
+    wpis.punkty.push({ data: g.data, w: p.w, liczba: liczbaZ(p.w), ref: p.ref, flaga: p.flaga });
+  }));
+  return { grupy, parametry: [...mapa.values()] };
+}
+
+/* Pięć wartości obserwowanych przez cały projekt. Dopasowanie luźne,
+   bo laboratoria nazywają je różnie („Cholesterol HDL", „Witamina D
+   (25-OH)"), ale nie-HDL to osobny parametr i nie może podszyć się
+   pod HDL. */
+const KREW_SLEDZONE = [
+  { l: "HDL", pasuje: (n) => /hdl/i.test(n) && !/nie-?\s*hdl|non-?\s*hdl/i.test(n) },
+  { l: "Ferrytyna", pasuje: (n) => /ferrytyn/i.test(n) },
+  { l: "Witamina D", pasuje: (n) => /witamina\s*d|25-?OH/i.test(n) },
+  { l: "FT3", pasuje: (n) => /\bFT3\b|trijodotyronin/i.test(n) },
+  { l: "TSH", pasuje: (n) => /\bTSH\b/i.test(n) },
+];
+
+/* Sparkline jednego parametru. Każdy dostaje własną skalę — TSH rzędu
+   1,8 i ferrytyna rzędu 45 na wspólnej osi dałyby dwie płaskie kreski.
+   Oś pozioma idzie po datach, nie po kolejności: pobrania nie są
+   równo rozłożone w czasie i udawanie, że są, zniekształca trend. */
+function SparkKrwi({ nazwa, jednostka, punkty }) {
+  const W = 250, H = 58, ML = 7, MR = 7, MT = 8, MB = 14;
+  const vals = punkty.map((p) => p.liczba);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const rozpietosc = (hi - lo) || Math.abs(hi) || 1;
+  const yMin = lo - rozpietosc * 0.3, yMax = hi + rozpietosc * 0.3;
+  const t = punkty.map((p) => d(p.data));
+  const t0 = t[0], t1 = t[t.length - 1];
+  const px = (ti) => ML + (t1 === t0 ? 0.5 : (ti - t0) / (t1 - t0)) * (W - ML - MR);
+  const py = (v) => MT + ((yMax - v) / (yMax - yMin)) * (H - MT - MB);
+  const pkt = punkty.map((p, i) => ({ x: px(t[i]), y: py(p.liczba), p }));
+  const pierwszy = punkty[0], ostatni = punkty[punkty.length - 1];
+  const zmiana = zmianaKrwi(ostatni.w, pierwszy.w);
+  return (
+    <div className="spark">
+      <div className="spark-head">
+        <b>{nazwa}</b>
+        <span>{ostatni.w}{jednostka ? " " + jednostka : ""}{zmiana ? <em>{zmiana}</em> : null}</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="sparksvg" role="img"
+           aria-label={`${nazwa}: od ${pierwszy.w} (${pierwszy.data}) do ${ostatni.w} (${ostatni.data})`}>
+        <polyline points={pkt.map((q) => `${q.x},${q.y}`).join(" ")} className="sparkline" />
+        {pkt.map((q, i) => <circle key={i} cx={q.x} cy={q.y} r="2.4" className="sparkpt" />)}
+        <text x={ML} y={H - 3} className="sparktick">{pierwszy.data.slice(2, 7).replace("-", "/")}</text>
+        {t1 !== t0 && (
+          <text x={W - MR} y={H - 3} className="sparktick" textAnchor="end">
+            {ostatni.data.slice(2, 7).replace("-", "/")}</text>
+        )}
+      </svg>
+    </div>
+  );
+}
 
 function planAt(dateStr) {
   const t = d(dateStr);
@@ -1000,7 +1110,13 @@ export default function Mockup() {
   const [CARDIO, setCardio]       = useState(() => z("cardio", CARDIO_INIT));
   const [SPIRO, setSpiro]         = useState(() => z("spiro", SPIRO_INIT));
   const [KREW, setKrew]           = useState(() => z("krew", KREW_INIT));
-  const [KREW_BRAKI, setKrewBraki]= useState(() => z("krewBraki", KREW_BRAKI_INIT));
+  /* Pusta lista zapisana przez starszą wersję ustępuje stałej z kodu —
+     patrz komentarz przy KREW_BRAKI_INIT. Zwykłe z() zwróciłoby [] i sekcja
+     „Nieoznaczone" zostałaby pusta mimo wypełnionej stałej. */
+  const [KREW_BRAKI, setKrewBraki]= useState(() => {
+    const s = z("krewBraki", KREW_BRAKI_INIT);
+    return Array.isArray(s) && s.length ? s : KREW_BRAKI_INIT;
+  });
   const [SCANS, setScans]         = useState(() => z("skany", SCANS_INIT));
   const [DANIA, setDania]         = useState(() => z("dania", DANIA_INIT));
   const [DZIENNE, setDzienne]     = useState(() => z("dzienne", DZIENNE_INIT));
@@ -1075,6 +1191,10 @@ export default function Mockup() {
   const [impW, setImpW] = useState(null);
   const [impBlad, setImpBlad] = useState(null);
   const [pod, setPod] = useState("wymiary");
+  /* Grupowanie po pobraniu zostaje domyślne: ta sama wartość mocznika
+     znaczy co innego przy innej podaży białka, więc przekrój po
+     parametrze jest widokiem pomocniczym, nie podstawowym. */
+  const [krewWidok, setKrewWidok] = useState("pobranie");
   const [cyklId, setCyklId] = useState(() =>
     (CYKLE.find((c) => statusCyklu(c, dzisIso()) === "aktualny") || CYKLE[0]).id);
   const [sesjaL, setSesjaL] = useState("A");
@@ -1638,8 +1758,18 @@ export default function Mockup() {
     if (rp.rodzaj === "krew") {
       /* Widok grupuje wyniki po pobraniu, nie po parametrze — porównanie
          majowego z grudniowym ma sens tylko w obrębie jednego dnia. */
-      const jednostka = (w) => (String(w).match(/[\d,.]+\s*(.*)$/) || [])[1] || "";
-      const wartosc = (w) => (String(w).match(/^[\d,.]+/) || [""])[0];
+      /* Wynik nieliczbowy — „ujemny", „ślad", „<0,3" — zostaje w całości.
+         Wcześniej wycinanie liczby z początku dawało dla nich pusty ciąg
+         i wartość przepadała: w tabeli zostawał sam zakres. */
+      const jednostka = (w) => {
+        const s = String(w == null ? "" : w).trim();
+        return /^[\d,.]/.test(s) ? ((s.match(/^[\d,.]+\s*(.*)$/) || [])[1] || "") : "";
+      };
+      const wartosc = (w) => {
+        const s = String(w == null ? "" : w).trim();
+        const m = s.match(/^[\d,.]+/);
+        return m ? m[0] : s;
+      };
       const grupa = {
         grupa: rp.grupa || "Pobranie " + data,
         data,
@@ -1652,17 +1782,21 @@ export default function Mockup() {
       setKrew((prev) => [...prev.filter((g) => g.data !== data), grupa]
         .sort((a, b) => (a.data < b.data ? -1 : 1)));
     } else if (rp.rodzaj === "spirometria") {
-      /* Spirometria trzyma jeden wiersz na badanie, nie na parametr —
-         wartości odniesienia dla grudnia to FEV1, FVC i ich stosunek. */
+      /* Komplet pozycji, nie cztery wybrane. Najsłabszym elementem wyniku
+         są małe oskrzela — MEF25 i FEF25-75 — i to je trzeba porównać
+         przy kontroli. Wcześniej przepadały przy zapisie.
+         FEV1, FVC i ratio zostają wyliczane osobno: służą tabeli zbiorczej
+         i porównaniu między badaniami. */
       const licz = (n) => {
         const p = rp.pozycje.find((x) => new RegExp("^" + n, "i").test(x.nazwa));
         return p ? parseFloat(String(p.wynik).replace(",", ".")) : null;
       };
       const fev1 = licz("FEV1(?!/)"), fvc = licz("FVC");
       const wiersz = {
-        id: Date.now(), date: data, fev1, fvc,
+        id: Date.now(), date: data,
+        poz: rp.pozycje.map((p) => ({ n: p.nazwa, w: p.wynik, ref: p.zakres, uwaga: p.uwaga })),
+        fev1, fvc,
         ratio: licz("FEV1/FVC") ?? (fev1 && fvc ? Math.round((fev1 / fvc) * 1000) / 10 : null),
-        norma: licz("% normy") ?? null,
       };
       setSpiro((prev) => [...prev.filter((x) => x.date !== data), wiersz]
         .sort((a, b) => (a.date < b.date ? -1 : 1)));
@@ -2213,6 +2347,19 @@ ZASADY:
       actual: series.map((e) => ({ x: px(d(e.date)), y: py(e.weight) })),
       trend: series.map((e) => `${px(d(e.date))},${py(e.trend)}`) };
   }, [series]);
+
+  /* Przekrój krwi po parametrach — potrzebny i przełącznikowi widoku,
+     i wykresom. Liczony raz, bo obie rzeczy czytają to samo. */
+  const krewDane = useMemo(() => krewPrzekroj(KREW), [KREW]);
+
+  /* Na wykres idą tylko te z obserwowanej piątki, które mają co najmniej
+     dwa liczbowe pomiary — z jednego punktu nie ma czego rysować. */
+  const krewWykresy = useMemo(() => KREW_SLEDZONE.map(({ l, pasuje }) => {
+    const p = krewDane.parametry.find((x) => pasuje(x.n));
+    if (!p) return null;
+    const punkty = p.punkty.filter((q) => q.liczba !== null);
+    return punkty.length >= 2 ? { l, jednostka: p.j, punkty } : null;
+  }).filter(Boolean), [krewDane]);
 
   /* Statusy zeszły z pięciu do dwóch. Stare wartości mapujemy w locie,
      żeby dania zapisane wcześniej nie wypadły z żadnego filtra. */
@@ -3524,15 +3671,55 @@ ZASADY:
                 <label>FEV1/FVC (%)<input placeholder="71" /></label>
               </div>
               <button className="primary">Zapisz wynik</button>
-              <table className="tbl">
-                <thead><tr><th>Data</th><th>FEV1</th><th>FVC</th><th>FEV1/FVC</th><th>% normy</th></tr></thead>
-                <tbody>{SPIRO.map((x)=>(
-                  <tr key={x.id}><td>{x.date}</td><td className="n">{num(x.fev1)} l</td>
-                    <td className="n">{num(x.fvc)} l</td><td className="n">{x.ratio}%</td>
-                    <td className="n">{x.norma}%</td></tr>))}
-                </tbody>
-              </table>
-              <p className="note">Wyniki interpretuje lekarz prowadzący astmę. Tu trzymamy je wyłącznie do porównania w czasie.</p>
+
+              {SPIRO.length === 0 ? (
+                <div className="pempty"><p>Brak badań. Wgraj raport <code>.md</code> z nagłówkiem <code>typ: spirometria</code>.</p></div>
+              ) : (
+                <>
+                  {/* Zbiorcza: trzy wartości, które porównuje się między badaniami.
+                      Reszta parametrów siedzi w blokach niżej. */}
+                  <div className="tblwrap">
+                    <table className="tbl">
+                      <thead><tr><th>Data</th><th>FEV1</th><th>FVC</th><th>FEV1/FVC</th></tr></thead>
+                      <tbody>{SPIRO.map((x) => (
+                        <tr key={x.id || x.date}><td>{x.date}</td>
+                          <td className="n">{num(x.fev1, 2)} l</td>
+                          <td className="n">{num(x.fvc, 2)} l</td>
+                          <td className="n">{x.ratio != null ? num(x.ratio, 1) + "%" : "—"}</td></tr>))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Komplet pozycji, blok na badanie. Badania sprzed v1.30
+                     nie mają `poz` — pokazujemy przy nich, czego brakuje,
+                     zamiast renderować pustą tabelę. */}
+                  {SPIRO.map((x) => (
+                    <div key={"p" + (x.id || x.date)} className="krewgrp">
+                      <div className="krewhead"><span>Spirometria</span><em>{x.date}</em></div>
+                      {(x.poz || []).length ? (
+                        <table className="tbl">
+                          <tbody>
+                            {x.poz.map((p, i) => (
+                              <tr key={p.n + i}>
+                                <td className="kn">{p.n}
+                                  {p.uwaga && <span className="kuw">{p.uwaga}</span>}</td>
+                                <td className="n strong">{p.w}</td>
+                                <td className="n quiet kref">{p.ref}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="note">Badanie zapisane starszą wersją apki — zachowane są tylko FEV1, FVC
+                          i ich stosunek. Wgraj raport ponownie, żeby mieć komplet parametrów.</p>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              <p className="note">Wyniki interpretuje lekarz prowadzący astmę. Tu trzymamy je wyłącznie do porównania w czasie.
+                Najsłabszym elementem bywają małe oskrzela — MEF25 i FEF25-75 — i to je porównuje się przy kontroli.</p>
             </>
           )}
 
@@ -3549,24 +3736,95 @@ ZASADY:
               </div>
               <button className="primary">Dodaj wynik</button>
 
-              {KREW.map((g) => (
-                <div key={g.grupa} className="krewgrp">
+              {KREW.length === 0 && (
+                <div className="pempty"><p>Brak pobrań. Wgraj raport <code>.md</code> z nagłówkiem <code>typ: krew</code>.</p></div>
+              )}
+
+              {KREW.length > 0 && (
+                <div className="kswitch">
+                  {[["pobranie", "po pobraniu"], ["parametr", "po parametrze"]].map(([k, l]) => (
+                    <button key={k} className={krewWidok === k ? "chipm on" : "chipm"}
+                            onClick={() => setKrewWidok(k)}>{l}</button>
+                  ))}
+                </div>
+              )}
+
+              {krewWidok === "pobranie" && krewDane.grupy.map((g, gi) => (
+                /* Klucz po dacie, nie po nazwie grupy — dwa pobrania nazwane
+                   tak samo dawały kolizję kluczy i React gubił wiersze. */
+                <div key={g.data} className="krewgrp">
                   <div className="krewhead"><span>{g.grupa}</span><em>{g.data}</em></div>
                   <table className="tbl">
                     <tbody>
-                      {g.poz.map((x) => (
-                        <tr key={x.n} className={x.flaga ? "f-" + x.flaga : ""}>
-                          <td className="kn">{x.n}
-                            {x.uwaga && <span className="kuw">{x.uwaga}</span>}</td>
-                          <td className="n strong">{x.w}</td>
-                          <td className="n ku">{x.j}</td>
-                          <td className="n quiet kref">{x.ref}</td>
-                        </tr>
-                      ))}
+                      {(g.poz || []).map((x, xi) => {
+                        /* Odniesienie to ostatnie wcześniejsze pobranie, w którym
+                           ten parametr w ogóle wystąpił — niekoniecznie poprzednie
+                           w kolejności, bo panele bywają różne. */
+                        let poprz = null;
+                        for (let i = gi - 1; i >= 0 && poprz === null; i--) {
+                          const t = (krewDane.grupy[i].poz || []).find((y) => y.n === x.n);
+                          if (t) poprz = t.w;
+                        }
+                        const dz = zmianaKrwi(x.w, poprz);
+                        return (
+                          <tr key={x.n + xi} className={x.flaga ? "f-" + x.flaga : ""}>
+                            <td className="kn">{x.n}
+                              {x.uwaga && <span className="kuw">{x.uwaga}</span>}</td>
+                            <td className="n strong">{x.w}</td>
+                            <td className="n ku">{x.j}</td>
+                            <td className="n kdelta">{dz || "—"}</td>
+                            <td className="n quiet kref">{x.ref}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               ))}
+
+              {krewWidok === "parametr" && (
+                <div className="krewgrp">
+                  <div className="krewhead"><span>Po parametrze</span>
+                    <em>{krewDane.grupy.length} {krewDane.grupy.length === 1 ? "pobranie" : "pobrania"}</em></div>
+                  <div className="tblwrap">
+                    <table className="tbl">
+                      <thead>
+                        <tr><th>Badanie</th>
+                          {krewDane.grupy.map((g) => <th key={g.data} className="n">{g.data}</th>)}
+                          <th className="n">Jedn.</th></tr>
+                      </thead>
+                      <tbody>
+                        {krewDane.parametry.map((p) => (
+                          <tr key={p.n}>
+                            <td className="kn">{p.n}</td>
+                            {krewDane.grupy.map((g) => {
+                              const q = p.punkty.find((y) => y.data === g.data);
+                              return <td key={g.data} className={"n" + (q ? " strong" : " quiet")}>
+                                {q ? q.w : "—"}</td>;
+                            })}
+                            <td className="n ku">{p.j}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="note">Ten sam parametr w poziomie, pobrania w kolumnach. Porównuj z głową —
+                    wartość zależy nie tylko od czasu, ale i od tego, co działo się przed pobraniem.</p>
+                </div>
+              )}
+
+              {krewWykresy.length > 0 && (
+                <div className="krewgrp">
+                  <div className="krewhead"><span>Obserwowane</span><em>przez cały projekt</em></div>
+                  <div className="sparks">
+                    {krewWykresy.map((w) => (
+                      <SparkKrwi key={w.l} nazwa={w.l} jednostka={w.jednostka} punkty={w.punkty} />
+                    ))}
+                  </div>
+                  <p className="note">Każdy wykres ma własną skalę — chodzi o kierunek zmiany, nie o porównanie
+                    wartości między parametrami. Rysują się dopiero od drugiego pomiaru.</p>
+                </div>
+              )}
 
               <div className="krewgrp">
                 <div className="krewhead"><span>Nieoznaczone</span><em>plan uzupełnienia</em></div>
@@ -3581,7 +3839,9 @@ ZASADY:
                 </ul>
               </div>
 
-              <p className="note">Dwie wartości na granicy zakresu są podświetlone. Żadna nie wymaga działania sama w sobie — obie służą jako punkt odniesienia dla kontroli grudniowej.</p>
+              <p className="note">Wartości na granicy zakresu są podświetlone. Flagi biorą się z kolumny „Uwaga” w raporcie,
+                nie z automatycznego porównania z zakresem — zakresy bywają zapisane opisowo i takie porównanie dawałoby fałszywe alarmy.
+                Kolumna zmiany nie jest kolorowana: kierunek nie znaczy tego samego dla każdego parametru.</p>
             </>
           )}
 
@@ -4773,6 +5033,23 @@ const CSS = `
 .f-prog .n.strong{color:var(--warn)}
 .f-gora td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
 .f-gora .n.strong{color:var(--actual)}
+/* Import wpisuje flagę "uwaga" — bez tej reguły wyniki na granicy zakresu
+   wchodziły z klasą f-uwaga, dla której nie było stylu, i nic się nie
+   podświetlało mimo obietnicy w opisie pod tabelą. */
+.f-uwaga td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
+.f-uwaga .n.strong{color:var(--actual)}
+.kswitch{display:flex;gap:5px;flex-wrap:wrap;margin:18px 0 4px}
+.kdelta{font-size:11px;color:var(--ink-2);white-space:nowrap}
+.sparks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:14px}
+.spark{border:1px solid var(--rule);border-radius:var(--r-sm);padding:9px 11px 4px;background:var(--paper)}
+.spark-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:2px}
+.spark-head b{font-size:12px;font-weight:500}
+.spark-head span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-2)}
+.spark-head em{font-style:normal;margin-left:6px;color:var(--ink)}
+.sparksvg{width:100%;height:auto;display:block;overflow:visible}
+.sparkline{fill:none;stroke:var(--actual);stroke-width:1.5}
+.sparkpt{fill:var(--actual)}
+.sparktick{font-family:'IBM Plex Mono',monospace;font-size:7.5px;fill:var(--ink-2)}
 .pempty{padding:18px 0}
 .pempty p{margin:0 0 8px;color:var(--ink-2)}
 .dishes{display:flex;flex-direction:column;gap:10px}

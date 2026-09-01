@@ -10,6 +10,36 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.30 — 1 września 2026
+
+**Spirometria trzyma komplet parametrów.** Przy zapisie zostawały cztery
+wartości, reszta raportu szła do kosza — w tym MEF25 i FEF25-75, czyli małe
+oskrzela, najsłabszy element wyniku i główny cel leczenia wziewnego. Teraz
+zapisywane są wszystkie pozycje, a podzakładka pokazuje je w tabeli pod
+zbiorczym zestawieniem FEV1/FVC. Badania zapisane starszą wersją nie mają
+kompletu i mówią o tym wprost — wystarczy wgrać raport ponownie.
+
+**Krew: kolumna zmiany.** Przy każdym parametrze różnica względem
+poprzedniego pobrania, w którym ten parametr wystąpił. Liczba miejsc po
+przecinku bierze się z samego wyniku, więc kreatynina schodzi o 0,06,
+a ferrytyna rośnie o 17. Bez kolorowania — w morfologii kierunek nie znaczy
+tego samego dla każdej pozycji.
+
+**Krew: widok po parametrze.** Przełącznik nad tabelą. Drugi układ daje
+jeden wiersz na badanie i kolumnę na pobranie, więc trend widać od razu.
+Domyślny zostaje podział po pobraniu.
+
+**Krew: wykresy pięciu obserwowanych.** HDL, ferrytyna, witamina D, FT3
+i TSH, każdy z własną skalą i od drugiego pomiaru wzwyż.
+
+**Uzupełniona lista „Nieoznaczone".** Pięć świadomych luk w baseline razem
+z powodem, dla którego nie zostały zrobione.
+
+**Poprawki znalezione przy okazji.** Wyniki nieliczbowe („ujemny", „<0,3")
+gubiły wartość przy imporcie krwi — w tabeli zostawał sam zakres. Wyniki na
+granicy zakresu nie podświetlały się, bo import wpisywał flagę, dla której
+nie było stylu. Dwa pobrania nazwane tak samo dawały kolizję kluczy Reacta.
+
 ## v1.29 — 1 września 2026
 
 Dwie naprawy synchronizacji. Obie wynikły ze zgłoszenia, że dane znikają
