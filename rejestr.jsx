@@ -6,9 +6,9 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
    ══════════════════════════════════════════════════════════ */
 
 let MILESTONES = [
-  { date: "2026-09-01", weight: 95.8 },
-  { date: "2026-12-31", weight: 90.0 },
-  { date: "2027-03-28", weight: 90.0 },
+  { date: "2026-09-01", weight: 94.1 },
+  { date: "2026-12-31", weight: 88.6 },
+  { date: "2027-03-28", weight: 88.6 },
   { date: "2027-07-25", weight: 82.0 },
 ];
 
@@ -398,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.26";
+const WERSJA_APKI = "1.27";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -524,13 +524,13 @@ const USTAWIENIA_DOM = {
   token: "",
   pin: "",
   ciemny: false,
-  planKcal: 2400,
+  planKcal: 2410,
   utrzymanie: 2850,
   autosync: true,
   kamienie: [
-    { date: "2026-09-01", weight: 95.8 },
-    { date: "2026-12-31", weight: 90.0 },
-    { date: "2027-03-28", weight: 90.0 },
+    { date: "2026-09-01", weight: 94.1 },
+    { date: "2026-12-31", weight: 88.6 },
+    { date: "2027-03-28", weight: 88.6 },
     { date: "2027-07-25", weight: 82.0 },
   ],
   fazy: [
@@ -655,7 +655,8 @@ const MINI = Object.fromEntries(
   ["allahy", "bulgary", "deadhang", "facepull", "farmer", "kolana", "modlitewnik", "ohp", "ohpMasz", "podciaganie", "prostowanieNog", "przysiad", "rdl", "rozpietki", "sciaganie", "skos", "skosMasz", "suwnica", "tricepsKlek", "uginanieMasz", "uginanieNog", "wioslowanie", "wioslowanieMasz", "wyciskanie", "wyciskanieMasz", "wznosHantel", "wznosy",
    "pullover", "tbar", "tricepsV", "uginanieSkos", "wspiecia", "hackSquat",
    "przywodzenie", "odwodzenie", "dipyGrawitron", "rozpietkiTyl", "jefferson",
-   "uginanieLinka", "tricepsLinka"].map((n) => [n, MINI_BASE + n + ".webp"])
+   "uginanieLinka", "tricepsLinka",
+   "hyper45", "hipthrust", "ohpMaszSiedz", "wioslowanieMasz2"].map((n) => [n, MINI_BASE + n + ".webp"])
 );
 
 
@@ -722,22 +723,24 @@ const CYKLE = [
       { l: "A", n: "FBW A", cw: [
         { img: "przysiad", n: "Przysiad (goblet → sztanga)", s: "3 × 6–10", r: 2, c: null, j: "kg" },
         { img: "wyciskanie", n: "Wyciskanie hantli, ławka płaska", s: "3 × 8–12", r: 2, c: null, j: "kg" },
-        { img: "wioslowanie", n: "Wiosłowanie jednorącz", s: "3 × 8–12", r: 2, c: null, j: "kg" },
-        { img: "ohp", n: "OHP", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "wioslowanie", n: "Wiosłowanie jednorącz — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "wioslowanieMasz2", n: "Wiosłowanie na maszynie — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "ohp", n: "OHP — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "ohpMaszSiedz", n: "Wyciskanie pionowe na maszynie — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "farmer", n: "Farmer walk", s: "3 × 40 m", c: null, j: "kg" },
         { img: "allahy", n: "Allahy", s: "3 × 8–12", c: null, j: "kg" },
         { img: "wznosy", n: "Wznosy bokiem na wyciągu", s: "klaster 15-8-5", c: null, j: "kg" },
         { img: "deadhang", n: "Deadhang", s: "2 × 30 s", c: null, j: "s" },
       ]},
       { l: "B", n: "FBW B", cw: [
-        { img: "rdl", n: "RDL ze sztangą — tydzień nieparzysty", s: "3 × 8–10", r: 2, c: null, j: "kg" },
-        { img: "bulgary", n: "Bułgary — tydzień parzysty", s: "3 × 8–10", r: 2, c: null, j: "kg" },
-        { img: "podciaganie", n: "Podciąganie (paski)", s: "3 × maks−2", c: null, j: "powt." },
+        { img: "hyper45", n: "Wyprosty tułowia 45° — tydzień nieparzysty", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "hipthrust", n: "Hip thrust — tydzień parzysty", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "podciaganie", n: "Podciąganie (paski)", s: "4 × maks−1", r: null, c: null, j: "kg" },
         { img: "skos", n: "Wyciskanie hantli, skos", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "facepull", n: "Face pull", s: "3 × 12–15", r: 2, c: null, j: "kg" },
         { img: "kolana", n: "Unoszenie kolan w zwisie", s: "3 × 8–12", c: null, j: "powt." },
-        { img: "deadhang", n: "Deadhang", s: "30 s", c: null, j: "s" },
         { img: "modlitewnik", n: "Modlitewnik", s: "klaster 15-8-5", c: null, j: "kg" },
+        { img: "jefferson", n: "Jefferson / Zercher curl", s: "2 × 8–10, lekko", c: null, j: "kg" },
       ]},
     ],
   },
