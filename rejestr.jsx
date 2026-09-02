@@ -398,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.30";
+const WERSJA_APKI = "1.31";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -904,21 +904,16 @@ const CARDIO_INIT = [];
 
 const SPIRO_INIT = [];
 
-/* Baseline 05.05.2026 (ALAB / ENEL-MED Łódź). flaga: null = w normie,
-   "prog" = na granicy zakresu, "gora" = przy górnej granicy. */
+/* flaga: null = w normie, "prog" = na granicy zakresu,
+   "gora" = przy górnej granicy, "uwaga" = z kolumny „Uwaga" przy imporcie. */
 const KREW_INIT = [];
 
-/* Świadome luki w baseline, nie zapomniane pozycje. Lista jest stała
-   w kodzie — nie ma UI do jej edycji, więc pusta tablica w zapisanym
-   stanie znaczy „stara wersja apki", a nie „człowiek to wyczyścił".
-   Stąd fallback przy wczytywaniu: pusta tablica ustępuje tej liście. */
-const KREW_BRAKI_INIT = [
-  { n: "Ferrytyna + żelazo", czemu: "spadek energii na deficycie bywa niedoborem żelaza; jedyna luka w baseline" },
-  { n: "FT3 z TSH", czemu: "obniżone FT3 po kilkunastu tygodniach deficytu to normalna adaptacja — warto mieć punkt odniesienia" },
-  { n: "Testosteron całkowity + SHBG", czemu: "deficyt i skrócony sen obniżają go niezależnie; zastępczo wychwytują to DEXA i test sprawnościowy" },
-  { n: "HbA1c", czemu: "wrażliwość insulinowa rośnie wraz z ubytkiem tłuszczu trzewnego" },
-  { n: "CRP", czemu: "tani marker stanu zapalnego jako tło" },
-];
+/* Świadome luki w baseline — czego nie zbadano i dlaczego. To notatka
+   medyczna, nie kod: w v1.30 lista siedziała wpisana tutaj i przez to
+   wyświetlała się każdemu, kto otworzył apkę, bez żadnego klucza do
+   danych — a `trener` jest publiczne. Teraz jedzie wyłącznie w worku
+   synchronizowanym przez prywatne repozytorium, jak reszta wyników. */
+const KREW_BRAKI_INIT = [];
 
 const WYMIARY_INIT = [];
 
@@ -1095,7 +1090,15 @@ export default function Mockup() {
      więc miejsca użycia się nie zmieniły — zmieniło się to, że dane
      przeżywają odświeżenie strony. */
   const zapisany = useRef(wczytajStan()).current;
-  const z = (nazwa, dom) => (zapisany && zapisany[nazwa] !== undefined ? zapisany[nazwa] : dom);
+  /* z() melduje, które pola faktycznie odtworzono — lista nie jest pisana
+     ręcznie, tylko bierze się z rzeczywistych wywołań, więc nie da się jej
+     zapomnieć zaktualizować. Sprawdzenie niżej porównuje ją z zawartością
+     worka zapisu. */
+  const odtworzone = useRef(new Set()).current;
+  const z = (nazwa, dom) => {
+    odtworzone.add(nazwa);
+    return zapisany && zapisany[nazwa] !== undefined ? zapisany[nazwa] : dom;
+  };
 
   const [ustawienia, setUstawienia] = useState(() =>
     /* Plan (kamienie, tempo, kalorie) idzie ostatni — czyta się z worka
@@ -1110,13 +1113,7 @@ export default function Mockup() {
   const [CARDIO, setCardio]       = useState(() => z("cardio", CARDIO_INIT));
   const [SPIRO, setSpiro]         = useState(() => z("spiro", SPIRO_INIT));
   const [KREW, setKrew]           = useState(() => z("krew", KREW_INIT));
-  /* Pusta lista zapisana przez starszą wersję ustępuje stałej z kodu —
-     patrz komentarz przy KREW_BRAKI_INIT. Zwykłe z() zwróciłoby [] i sekcja
-     „Nieoznaczone" zostałaby pusta mimo wypełnionej stałej. */
-  const [KREW_BRAKI, setKrewBraki]= useState(() => {
-    const s = z("krewBraki", KREW_BRAKI_INIT);
-    return Array.isArray(s) && s.length ? s : KREW_BRAKI_INIT;
-  });
+  const [KREW_BRAKI, setKrewBraki]= useState(() => z("krewBraki", KREW_BRAKI_INIT));
   const [SCANS, setScans]         = useState(() => z("skany", SCANS_INIT));
   const [DANIA, setDania]         = useState(() => z("dania", DANIA_INIT));
   const [DZIENNE, setDzienne]     = useState(() => z("dzienne", DZIENNE_INIT));
@@ -1198,14 +1195,18 @@ export default function Mockup() {
   const [cyklId, setCyklId] = useState(() =>
     (CYKLE.find((c) => statusCyklu(c, dzisIso()) === "aktualny") || CYKLE[0]).id);
   const [sesjaL, setSesjaL] = useState("A");
-  const [ciezary, setCiezary] = useState(() => {
+  /* Obciążenia i ich historia muszą przeżyć odświeżenie tak samo jak
+     tygodnie. Bez z() startowały z wartości wpisanych w plan i pierwsza
+     zmiana czegokolwiek nadpisywała nimi zapis — razem z dorobkiem
+     z drugiego urządzenia. */
+  const [ciezary, setCiezary] = useState(() => z("ciezary", (() => {
     const o = {};
     CYKLE.forEach((c) => c.sesje.forEach((se) => se.cw.forEach((x) => {
       if (x.c != null) o[x.n] = x.c;
     })));
     return o;
-  });
-  const [historia, setHistoria] = useState(HISTORIA_START);
+  })()));
+  const [historia, setHistoria] = useState(() => z("historia", HISTORIA_START));
   const [rozwin, setRozwin] = useState(null);
   const [opis, setOpis] = useState("");
   const [wynik, setWynik] = useState(null);
@@ -1213,7 +1214,12 @@ export default function Mockup() {
   const [bladAI, setBladAI] = useState(null);
   const [porcje, setPorcje] = useState("1");
   const [nazwa, setNazwa] = useState("");
-  const [zapisane, setZapisane] = useState([]);
+  /* To jest ten błąd, przez który przepisy z kalkulatora znikały „po jakimś
+     czasie": stan startował pustą tablicą, więc pierwszy zapis po otwarciu
+     apki nadpisywał zachowane obliczenia niczym. Bramka zgodności z v1.29
+     nie mogła tego złapać — kasowanie działo się lokalnie, zanim
+     cokolwiek poszło na GitHub. */
+  const [zapisane, setZapisane] = useState(() => z("zapisane", []));
 
   /* ── Zapis ──────────────────────────────────────────────
      Jeden worek, jeden zapis. Osobne klucze na sekcję dawałyby kilkanaście
@@ -1232,6 +1238,21 @@ export default function Mockup() {
   }), [ENTRIES, COMMENTS, WYMIARY, TESTY, CARDIO, SPIRO, KREW, KREW_BRAKI,
        SCANS, DANIA, DZIENNE, WYDARZENIA, ciezary, historia, zapisane,
        ustawienia.planKcal, ustawienia.utrzymanie, ustawienia.kamienie, ustawienia.fazy]);
+
+  /* Pole, które trafia do worka zapisu, ale nie jest odtwarzane przy starcie,
+     kasuje samo siebie przy pierwszej zmianie czegokolwiek — tak przez trzy
+     wersje znikały przepisy z kalkulatora, obciążenia i ich historia.
+     Sprawdzamy to na starcie i krzyczymy do konsoli, zamiast czekać, aż
+     ktoś zauważy brak danych. `plan` jest wyjątkiem: odtwarza się przez
+     `ustawienia`, nie przez z(). */
+  useEffect(() => {
+    const pominiete = Object.keys(stanDoZapisu)
+      .filter((k) => k !== "plan" && !odtworzone.has(k));
+    if (pominiete.length) {
+      console.error("[rejestr] Pola zapisywane, ale nieodtwarzane przy starcie: "
+        + pominiete.join(", ") + ". Dopisz je przez z() w useState, inaczej zostaną skasowane.");
+    }
+  }, []);
 
   const [zapisBlad, setZapisBlad] = useState(null);
   const pierwszy = useRef(true);
@@ -1740,6 +1761,26 @@ export default function Mockup() {
       id: Date.now(), date: skladForm.date, kind: skladForm.kind, weight: w, fat: f, lean: l,
     }].sort((a, b) => (a.date < b.date ? -1 : 1)));
     setSkladForm({ date: dzisIso(), kind: "DEXA", weight: "", fat: "", lean: "" });
+  }
+
+  /* Wczytanie do formularza; zapis nadpisze pomiar o tej samej dacie
+     i metodzie — tak samo jak przy wymiarach. */
+  function wczytajSklad(x) {
+    setSkladForm({
+      date: x.date, kind: x.kind,
+      weight: x.weight == null ? "" : num(x.weight),
+      fat: x.fat == null ? "" : num(x.fat),
+      lean: x.lean == null ? "" : num(x.lean),
+    });
+  }
+
+  /* Skany z importu DEXA mają id, starsze wpisy bywają bez — wtedy
+     rozpoznajemy pomiar po dacie i metodzie. */
+  function usunSklad(s) {
+    if (!window.confirm(`Usunąć pomiar ${s.kind} z ${s.date}?`)) return;
+    setScans((prev) => prev.filter((x) => (s.id != null
+      ? x.id !== s.id
+      : !(x.date === s.date && x.kind === s.kind))));
   }
 
   function wgrajRaport(plik) {
@@ -3826,18 +3867,23 @@ ZASADY:
                 </div>
               )}
 
-              <div className="krewgrp">
-                <div className="krewhead"><span>Nieoznaczone</span><em>plan uzupełnienia</em></div>
-                <ul className="ag-list">
-                  {KREW_BRAKI.map((b) => (
-                    <li key={b.n} className="ag wkrotce">
-                      <span className="ag-dot" />
-                      <span className="ag-body"><b>{b.n}</b><em>{b.czemu}</em></span>
-                      <span className="ag-when">{b.kiedy}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {/* Notatka medyczna — pokazuje się tylko wtedy, gdy przyszła
+                  z prywatnych danych. Pusta lista znaczy „urządzenie nie ma
+                  jeszcze pobranych danych" i nie ma czego wyświetlać. */}
+              {KREW_BRAKI.length > 0 && (
+                <div className="krewgrp">
+                  <div className="krewhead"><span>Nieoznaczone</span><em>plan uzupełnienia</em></div>
+                  <ul className="ag-list">
+                    {KREW_BRAKI.map((b) => (
+                      <li key={b.n} className="ag wkrotce">
+                        <span className="ag-dot" />
+                        <span className="ag-body"><b>{b.n}</b><em>{b.czemu}</em></span>
+                        <span className="ag-when">{b.kiedy}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <p className="note">Wartości na granicy zakresu są podświetlone. Flagi biorą się z kolumny „Uwaga” w raporcie,
                 nie z automatycznego porównania z zakresem — zakresy bywają zapisane opisowo i takie porównanie dawałoby fałszywe alarmy.
@@ -3870,15 +3916,27 @@ ZASADY:
                   onChange={(e) => setSkladForm({ ...skladForm, lean: e.target.value })} /></label>
               </div>
               <button className="primary" onClick={zapiszSklad}>Zapisz pomiar</button>
-              <table className="tbl">
-                <thead><tr><th>Data</th><th>Metoda</th><th>% tł.</th><th>LBM</th><th>Δ LBM</th></tr></thead>
-                <tbody>{SCANS.map((x,i)=>{
-                  const dl = i>0 ? x.lean - SCANS[i-1].lean : null;
-                  return (<tr key={x.id}><td>{x.date}</td><td>{x.kind}</td>
-                    <td className="n">{num(x.fat)}</td><td className="n">{num(x.lean)}</td>
-                    <td className={"n " + (dl!=null && dl<-1 ? "warn":"good")}>{dl!=null?signed(dl):"—"}</td></tr>);
-                })}</tbody>
-              </table>
+              {SCANS.length === 0 ? (
+                <div className="pempty"><p>Brak pomiarów. Wpisz ręcznie albo wgraj raport <code>.md</code> z nagłówkiem <code>typ: dexa</code>.</p></div>
+              ) : (
+              <div className="tblwrap">
+                <table className="tbl">
+                  <thead><tr><th>Data</th><th>Metoda</th><th>% tł.</th><th>LBM</th><th>Δ LBM</th><th /></tr></thead>
+                  <tbody>{SCANS.map((x,i)=>{
+                    const dl = i>0 ? x.lean - SCANS[i-1].lean : null;
+                    return (<tr key={x.id || x.date + x.kind}><td>{x.date}</td><td>{x.kind}</td>
+                      <td className="n">{num(x.fat)}</td><td className="n">{num(x.lean)}</td>
+                      <td className={"n " + (dl!=null && dl<-1 ? "warn":"good")}>{dl!=null?signed(dl):"—"}</td>
+                      <td className="n wact">
+                        <button className="mini" title="Wczytaj do formularza"
+                                onClick={() => wczytajSklad(x)}>edytuj</button>
+                        <button className="mini ghost" title="Usuń pomiar"
+                                onClick={() => usunSklad(x)}>usuń</button>
+                      </td></tr>);
+                  })}</tbody>
+                </table>
+              </div>
+              )}
               <p className="note">Spadek masy beztłuszczowej o więcej niż 1 kg między skanami to sygnał, żeby zwolnić deficyt.</p>
             </>
           )}

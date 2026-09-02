@@ -10,6 +10,36 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.31 — 1 września 2026
+
+**Przepisy z kalkulatora przestały znikać — tym razem naprawdę.** Poprzednie
+podejście (v1.29) celowało w synchronizację i nie mogło pomóc, bo błąd był
+gdzie indziej: `zapisane`, `ciezary` i `historia` trafiały do worka zapisu,
+ale przy starcie apki nigdy się z niego nie odtwarzały. Stan startował pusty,
+więc pierwszy zapis czegokolwiek nadpisywał zachowane obliczenia i obciążenia
+niczym — lokalnie, zanim jeszcze cokolwiek poszło na GitHub. Trzy pola czyta
+teraz `z()`, jak reszta.
+
+**Strażnik przed powtórką.** Pole zapisywane, ale nieodtwarzane kasuje samo
+siebie i nie widać tego, dopóki ktoś nie zauważy braku danych. Funkcja `z()`
+melduje więc, co odtworzyła, a apka porównuje to na starcie z zawartością
+worka zapisu i krzyczy do konsoli przy rozjeździe. Lista nie jest pisana
+ręcznie, tylko bierze się z faktycznych wywołań, więc nie da się jej zapomnieć
+zaktualizować.
+
+**Skład ciała: edycja i usuwanie pomiaru.** Tak samo jak przy wymiarach —
+„edytuj” wczytuje do formularza, zapis nadpisuje pomiar o tej samej dacie
+i metodzie, „usuń” pyta o potwierdzenie. Pusta tabela mówi teraz, że jest pusta.
+
+**Lista „Nieoznaczone" wyszła z kodu do danych.** W v1.30 siedziała wpisana
+w `rejestr.jsx`, czyli w publicznym repozytorium, i wyświetlała się każdemu,
+kto otworzył apkę — bez żadnego klucza do danych. To notatka medyczna, więc
+jedzie teraz wyłącznie w worku synchronizowanym przez prywatne repozytorium,
+a sekcja w ogóle się nie renderuje, dopóki urządzenie nie ma pobranych danych.
+
+**Nazwa laboratorium usunięta z komentarza** nad `KREW_INIT`. Została tam po
+czasach, gdy stała trzymała prawdziwe wyniki.
+
 ## v1.30 — 1 września 2026
 
 **Spirometria trzyma komplet parametrów.** Przy zapisie zostawały cztery
