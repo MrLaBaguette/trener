@@ -10,6 +10,14 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.32 — 1 września 2026
+
+**Pasek statusu mówi, w którą stronę idzie synchronizacja.** Przy pobieraniu
+pokazywał „wysyłam…", czyli dokładnie odwrotnie niż to, co się działo — i to
+przy jedynej operacji zdolnej nadpisać dane na urządzeniu. Kierunek jest teraz
+zapisywany w stanie synchronizacji, a oba paski, górny i stopka, czytają jedną
+wspólną etykietę: „pobieram…" albo „wysyłam…".
+
 ## v1.31 — 1 września 2026
 
 **Przepisy z kalkulatora przestały znikać — tym razem naprawdę.** Poprzednie

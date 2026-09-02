@@ -398,7 +398,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.31";
+const WERSJA_APKI = "1.32";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1324,7 +1324,11 @@ export default function Mockup() {
       setSync({ ...sync, stan: "blad", blad: "Uzupełnij repozytorium i token w Ustawieniach." });
       return;
     }
-    setSync({ ...sync, stan: "pracuje", blad: null });
+    /* Kierunek trzymamy w stanie, bo pasek statusu ma powiedzieć, co się
+       naprawdę dzieje. Wcześniej obie strony pokazywały „wysyłam…",
+       więc pobranie wyglądało jak wysyłka — dokładnie odwrotnie niż
+       w rzeczywistości, przy jedynej operacji zdolnej nadpisać dane. */
+    setSync({ ...sync, stan: "pracuje", kierunek, blad: null });
     try {
       if (kierunek === "pobierz") {
         const { dane, sha } = await ghPobierz(ustawienia);
@@ -2413,6 +2417,10 @@ ZASADY:
     filtr === "dowykonania" ? statusDania(x) === "kuchnia" :
     filtr === "wykonane" ? statusDania(x) === "wykonane" : true);
 
+  /* Jedna etykieta na dwa paski — górny i stopkę. Osobne napisy w obu
+     miejscach rozjechałyby się przy pierwszej zmianie. */
+  const etykietaSync = sync.kierunek === "pobierz" ? "pobieram…" : "wysyłam…";
+
   if (ustawienia.pin && !odblokowany) {
     return (
       <div className={"rej" + (dark ? " dark" : "")}>
@@ -2456,7 +2464,7 @@ ZASADY:
         <span>
           {zapisano ? `zapisano ${godzinaZ(zapisano)}` : "brak zapisu"}
           {ustawienia.token && ustawienia.repo &&
-            (sync.stan === "pracuje" ? " · wysyłam…"
+            (sync.stan === "pracuje" ? " · " + etykietaSync
               : sync.blad ? " · " + sync.blad
               : zgodne ? (sync.kiedy ? ` · github ${godzinaZ(sync.kiedy)}` : " · wysyła sama")
               : " · automat wstrzymany")}
@@ -4248,7 +4256,7 @@ ZASADY:
           {zapisBlad ? zapisBlad
             : zapisano ? `Zapisano lokalnie ${godzinaZ(zapisano)}`
             : "Dane w tej przeglądarce"}
-          {sync.stan === "pracuje" && " · wysyłam…"}
+          {sync.stan === "pracuje" && " · " + etykietaSync}
           {sync.kiedy && sync.stan === "gotowe" && !sync.blad &&
             ` · GitHub ${godzinaZ(sync.kiedy)}`}
           {sync.blad && " · synchronizacja: " + sync.blad}
