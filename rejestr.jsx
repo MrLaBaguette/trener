@@ -201,6 +201,24 @@ function czytajPrzepis(txt) {
   };
 }
 
+/* Tagi dania. Przepisy wgrane przed v1.33 nie mają ich w rekordzie, ale
+   mają całą treść pliku — odczytujemy je stamtąd, żeby wyszukiwanie
+   działało od razu, bez wgrywania czegokolwiek ponownie. */
+function tagiDania(x) {
+  if (Array.isArray(x.tagi)) return x.tagi;
+  if (!x.tresc) return [];
+  try { return czytajPrzepis(x.tresc).tagi || []; } catch (e) { return []; }
+}
+
+/* „meal/lunch" czyta się gorzej niż „lunch", ale sama końcówka gubi
+   kontekst przy tagach typu „cookbook/mealprep". Zostawiamy grupę
+   z przodu i tylko rozdzielamy ją wizualnie. */
+function etykietaTagu(t) {
+  const i = String(t).indexOf("/");
+  return i === -1 ? { grupa: null, nazwa: String(t) }
+    : { grupa: String(t).slice(0, i), nazwa: String(t).slice(i + 1) };
+}
+
 /* Progi wejścia do jadłospisu z ZYWIENIE.md. Obiad i kolacja mają ten sam
    próg, podwieczorek niższy — ciężar białkowy idzie na posiłek główny. */
 const PROGI = {
@@ -398,7 +416,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.32";
+const WERSJA_APKI = "1.33";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1141,6 +1159,10 @@ export default function Mockup() {
   const [wymForm, setWymForm] = useState(() => ({ date: dzisIso(), masa: "" }));
   const [openWeek, setOpenWeek] = useState(null);
   const [filtr, setFiltr] = useState("wszystko");
+  const [szukaj, setSzukaj] = useState("");
+  /* Wybrane tagi zawężają się nawzajem: „meal/lunch" plus „meat/pork"
+     ma dać obiady wieprzowe, a nie sumę jednego i drugiego. */
+  const [tagiWybrane, setTagiWybrane] = useState([]);
   const [stage, setStage] = useState("form");
   const [kom, setKom] = useState("");
   const [skopiowane, setSkopiowane] = useState(false);
@@ -1645,6 +1667,9 @@ export default function Mockup() {
           porcje: p.porcje,
           porcjeBaza: p.porcje,
           posilek: p.posilek,
+          /* Tagi z vaulta (meal/lunch, meat/pork…). Czytane były od dawna,
+             ale przy zapisie przepadały — zostawał sam `posilek`. */
+          tagi: p.tagi,
           ocena: p.ocena,
           zona: p.zona,
           status: p.ocena ? "vault" : "kuchnia",
@@ -2411,11 +2436,50 @@ ZASADY:
   const statusDania = (x) =>
     ["ocenione", "vault", "odrzucone", "wykonane"].includes(x.status) ? "wykonane" : "kuchnia";
 
-  const dania = DANIA.filter((x) =>
-    filtr === "wszystko" ? true :
-    filtr === "ulubione" ? !!x.ulubione :
-    filtr === "dowykonania" ? statusDania(x) === "kuchnia" :
-    filtr === "wykonane" ? statusDania(x) === "wykonane" : true);
+  /* Tagi liczone raz na zmianę listy — dla dań sprzed v1.33 wymaga to
+     przeparsowania treści pliku, więc nie chcemy tego przy każdym wpisanym
+     znaku w wyszukiwarce. */
+  const tagiWg = useMemo(() => {
+    const m = new Map();
+    DANIA.forEach((x) => m.set(x.id, tagiDania(x)));
+    return m;
+  }, [DANIA]);
+
+  /* Wszystkie tagi występujące w kolekcji, pogrupowane po przedrostku —
+     lista bierze się z dań, więc nie trzeba jej nigdzie utrzymywać. */
+  const tagiDostepne = useMemo(() => {
+    const licznik = new Map();
+    DANIA.forEach((x) => (tagiWg.get(x.id) || []).forEach((t) => {
+      licznik.set(t, (licznik.get(t) || 0) + 1);
+    }));
+    return [...licznik.entries()]
+      .map(([t, ile]) => ({ t, ile, ...etykietaTagu(t) }))
+      .sort((a, b) => (a.grupa === b.grupa
+        ? b.ile - a.ile
+        : String(a.grupa).localeCompare(String(b.grupa), "pl")));
+  }, [DANIA, tagiWg]);
+
+  const dania = DANIA.filter((x) => {
+    const wgStatusu =
+      filtr === "wszystko" ? true :
+      filtr === "ulubione" ? !!x.ulubione :
+      filtr === "dowykonania" ? statusDania(x) === "kuchnia" :
+      filtr === "wykonane" ? statusDania(x) === "wykonane" : true;
+    if (!wgStatusu) return false;
+
+    const tg = tagiWg.get(x.id) || [];
+    if (tagiWybrane.length && !tagiWybrane.every((t) => tg.includes(t))) return false;
+
+    const q = szukaj.trim().toLowerCase();
+    if (!q) return true;
+    /* Szukamy i po nazwie, i po tagach — „pork" ma znaleźć danie
+       otagowane meat/pork, nawet jeśli słowo nie pada w tytule. */
+    return String(x.nazwa || "").toLowerCase().includes(q)
+      || tg.some((t) => t.toLowerCase().includes(q));
+  });
+
+  const przelaczTag = (t) => setTagiWybrane((prev) =>
+    prev.includes(t) ? prev.filter((y) => y !== t) : [...prev, t]);
 
   /* Jedna etykieta na dwa paski — górny i stopkę. Osobne napisy w obu
      miejscach rozjechałyby się przy pierwszej zmianie. */
@@ -4155,6 +4219,31 @@ ZASADY:
             </span>
           </div>
 
+          <div className="szukajka">
+            <input className="szukaj-in" value={szukaj} placeholder="Szukaj po nazwie albo tagu — np. pork, lunch"
+                   onChange={(e) => setSzukaj(e.target.value)} />
+            {(szukaj || tagiWybrane.length > 0) && (
+              <button className="ghost tiny" onClick={() => { setSzukaj(""); setTagiWybrane([]); }}>Wyczyść</button>
+            )}
+            <span className="tiny-note">{dania.length} z {DANIA.length}</span>
+          </div>
+
+          {tagiDostepne.length > 0 && (
+            <div className="tagi-filtr">
+              {tagiDostepne.map(({ t, grupa, nazwa, ile }) => (
+                <button key={t} className={"tag" + (tagiWybrane.includes(t) ? " on" : "")}
+                        title={t + " · " + ile + (ile === 1 ? " danie" : " dań")}
+                        onClick={() => przelaczTag(t)}>
+                  {grupa && <em>{grupa}</em>}{nazwa}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {dania.length === 0 && DANIA.length > 0 && (
+            <div className="pempty"><p>Nic nie pasuje do tego zestawienia. Poluzuj wyszukiwanie albo odznacz któryś tag.</p></div>
+          )}
+
           <div className="dishes">
             {dania.map((x) => (
               <article key={x.id} className={"dish st-" + statusDania(x)}>
@@ -4174,6 +4263,21 @@ ZASADY:
                   <span><b>{x.blonnik}</b> g błonnika</span>
                   {x.data && <span className="dq">gotowane {x.data}</span>}
                 </div>
+                {(tagiWg.get(x.id) || []).length > 0 && (
+                  /* Tagi na karcie są klikalne — najszybsza droga do „pokaż
+                     mi wszystko inne z tej samej półki". */
+                  <div className="dtagi">
+                    {(tagiWg.get(x.id) || []).map((t) => {
+                      const { grupa, nazwa } = etykietaTagu(t);
+                      return (
+                        <button key={t} className={"tag mini-tag" + (tagiWybrane.includes(t) ? " on" : "")}
+                                title={"Filtruj po " + t} onClick={() => przelaczTag(t)}>
+                          {grupa && <em>{grupa}</em>}{nazwa}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {(x.ocena || x.zona) && (
                   <div className="drate">
                     <span className="rlbl">Ja</span><Ocena n={x.ocena} />
@@ -5104,6 +5208,20 @@ const CSS = `
    podświetlało mimo obietnicy w opisie pod tabelą. */
 .f-uwaga td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
 .f-uwaga .n.strong{color:var(--actual)}
+.szukajka{display:flex;align-items:center;gap:9px;margin:0 0 11px}
+.szukaj-in{flex:1;min-width:0;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:9px 11px;
+  border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
+.szukaj-in:focus{outline:none;border-color:var(--ink-2)}
+.tagi-filtr{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.tag{display:inline-flex;align-items:baseline;gap:4px;padding:4px 10px;border:1px solid var(--rule);
+  border-radius:99px;background:var(--paper);cursor:pointer;color:var(--ink-2);
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.02em}
+.tag em{font-style:normal;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.tag:hover{border-color:var(--ink-2);color:var(--ink)}
+.tag.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tag.on em{opacity:.75}
+.dtagi{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
+.mini-tag{padding:3px 8px;font-size:9.5px}
 .kswitch{display:flex;gap:5px;flex-wrap:wrap;margin:18px 0 4px}
 .kdelta{font-size:11px;color:var(--ink-2);white-space:nowrap}
 .sparks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:14px}

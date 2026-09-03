@@ -10,6 +10,25 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.33 — 1 września 2026
+
+**Wyszukiwanie przepisów po tagach z vaulta.** Tagi (`meal/lunch`,
+`meat/pork`, `cookbook/mealprep`) były czytane z pliku od dawna, ale przy
+zapisie przepadały — zostawał z nich tylko rodzaj posiłku. Teraz trafiają do
+dania i można po nich szukać.
+
+Pole wyszukiwania nad listą obejmuje nazwę **i** tagi, więc „pork” znajdzie
+schab, choć to słowo nie pada w tytule. Pod spodem chipy ze wszystkimi tagami,
+jakie faktycznie występują w kolekcji — lista bierze się z dań, więc nie trzeba
+jej nigdzie utrzymywać. Wybrane tagi zawężają się nawzajem: `meal/lunch` plus
+`meat/pork` daje obiady wieprzowe, a nie sumę jednego i drugiego. Tagi widać
+też na kartach dań i każdy jest klikalny — najkrótsza droga do „pokaż resztę
+z tej samej półki”. Wszystko działa razem z dotychczasowymi filtrami statusu.
+
+Przepisy wgrane wcześniej nie mają tagów w rekordzie, ale mają zachowaną treść
+pliku — apka czyta je stamtąd, więc wyszukiwanie działa od razu, bez wgrywania
+czegokolwiek ponownie.
+
 ## v1.32 — 1 września 2026
 
 **Pasek statusu mówi, w którą stronę idzie synchronizacja.** Przy pobieraniu
