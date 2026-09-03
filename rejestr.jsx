@@ -416,7 +416,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.33";
+const WERSJA_APKI = "1.34";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -4212,20 +4212,22 @@ ZASADY:
         <section className="panel">
           <div className="bal-head">
             <span>Cookbook</span>
+            <span className="tiny-note">{dania.length} z {DANIA.length}</span>
+          </div>
+
+          {/* Wyszukiwarka zajmuje pół wiersza, żeby filtry statusu zmieściły
+              się obok. Na wąskim ekranie całość się zawija zamiast ściskać. */}
+          <div className="szukajka">
+            <input className="szukaj-in" value={szukaj} placeholder="Szukaj — np. pork, lunch"
+                   onChange={(e) => setSzukaj(e.target.value)} />
             <span className="filters">
               {[["wszystko","Wszystko"],["dowykonania","Do wykonania"],["wykonane","Wykonane"],["ulubione","Ulubione"]].map(([k,l]) => (
                 <button key={k} className={filtr===k?"ghost tiny on":"ghost tiny"} onClick={()=>setFiltr(k)}>{l}</button>
               ))}
             </span>
-          </div>
-
-          <div className="szukajka">
-            <input className="szukaj-in" value={szukaj} placeholder="Szukaj po nazwie albo tagu — np. pork, lunch"
-                   onChange={(e) => setSzukaj(e.target.value)} />
             {(szukaj || tagiWybrane.length > 0) && (
               <button className="ghost tiny" onClick={() => { setSzukaj(""); setTagiWybrane([]); }}>Wyczyść</button>
             )}
-            <span className="tiny-note">{dania.length} z {DANIA.length}</span>
           </div>
 
           {tagiDostepne.length > 0 && (
@@ -5208,9 +5210,13 @@ const CSS = `
    podświetlało mimo obietnicy w opisie pod tabelą. */
 .f-uwaga td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
 .f-uwaga .n.strong{color:var(--actual)}
-.szukajka{display:flex;align-items:center;gap:9px;margin:0 0 11px}
-.szukaj-in{flex:1;min-width:0;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:9px 11px;
+.szukajka{display:flex;align-items:center;gap:9px;margin:0 0 11px;flex-wrap:wrap}
+.szukaj-in{flex:0 1 46%;min-width:160px;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:9px 11px;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
+.szukajka .filters{flex-wrap:wrap;margin-left:auto}
+/* Poniżej tej szerokości filtry i tak nie zmieszczą się obok, a półpuste
+   pole wyglądałoby jak niedoróbka — wtedy wyszukiwarka bierze cały wiersz. */
+@media(max-width:600px){ .szukajka .szukaj-in{flex-basis:100%} .szukajka .filters{margin-left:0} }
 .szukaj-in:focus{outline:none;border-color:var(--ink-2)}
 .tagi-filtr{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
 .tag{display:inline-flex;align-items:baseline;gap:4px;padding:4px 10px;border:1px solid var(--rule);

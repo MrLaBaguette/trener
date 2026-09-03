@@ -10,6 +10,15 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.34 — 1 września 2026
+
+**Wyszukiwarka przepisów na pół wiersza, filtry obok niej.** Pole zajmowało
+całą szerokość i spychało filtry statusu do osobnego rzędu. Teraz bierze 46%,
+a „Wszystko / Do wykonania / Wykonane / Ulubione" siedzą po prawej w tym samym
+wierszu. Licznik dopasowań przeniósł się do nagłówka, obok napisu „Cookbook”.
+Na ekranie węższym niż 600 px filtry i tak by się nie zmieściły, więc tam
+wyszukiwarka bierze cały wiersz, a filtry schodzą pod spód.
+
 ## v1.33 — 1 września 2026
 
 **Wyszukiwanie przepisów po tagach z vaulta.** Tagi (`meal/lunch`,
