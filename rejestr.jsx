@@ -201,18 +201,28 @@ function czytajPrzepis(txt) {
   };
 }
 
+/* Kategorie tagów, po których da się szukać. Vault ma ich więcej —
+   cookbook/, taste/ i inne — ale do znalezienia przepisu potrzebne są
+   tylko te dwie; reszta zaśmiecała pasek chipów. Surowe tagi zostają
+   w rekordzie nietknięte, filtrujemy dopiero przy czytaniu, więc
+   dołożenie tu kolejnej kategorii wystarcza, żeby wróciła. */
+const TAGI_KATEGORIE = ["meal", "meat"];
+
 /* Tagi dania. Przepisy wgrane przed v1.33 nie mają ich w rekordzie, ale
    mają całą treść pliku — odczytujemy je stamtąd, żeby wyszukiwanie
    działało od razu, bez wgrywania czegokolwiek ponownie. */
 function tagiDania(x) {
-  if (Array.isArray(x.tagi)) return x.tagi;
-  if (!x.tresc) return [];
-  try { return czytajPrzepis(x.tresc).tagi || []; } catch (e) { return []; }
+  let surowe = [];
+  if (Array.isArray(x.tagi)) surowe = x.tagi;
+  else if (x.tresc) {
+    try { surowe = czytajPrzepis(x.tresc).tagi || []; } catch (e) { surowe = []; }
+  }
+  return surowe.filter((t) => TAGI_KATEGORIE.includes(etykietaTagu(t).grupa));
 }
 
 /* „meal/lunch" czyta się gorzej niż „lunch", ale sama końcówka gubi
-   kontekst przy tagach typu „cookbook/mealprep". Zostawiamy grupę
-   z przodu i tylko rozdzielamy ją wizualnie. */
+   kontekst — „chicken" bez „meat" przed sobą znaczy mniej. Zostawiamy
+   grupę z przodu i tylko rozdzielamy ją wizualnie. */
 function etykietaTagu(t) {
   const i = String(t).indexOf("/");
   return i === -1 ? { grupa: null, nazwa: String(t) }
@@ -416,7 +426,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.34";
+const WERSJA_APKI = "1.35";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";

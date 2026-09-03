@@ -10,6 +10,17 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.35 — 1 września 2026
+
+**Rozpoznawane są tylko tagi `meal/` i `meat/`.** Vault ma ich więcej —
+`cookbook/`, `taste/`, `source/` i inne — i wszystkie lądowały na pasku chipów,
+zaśmiecając go pozycjami, po których i tak nikt nie szuka przepisu. Teraz do
+wyszukiwania, chipów i kart dań wchodzą wyłącznie te dwie kategorie.
+
+Surowe tagi zostają w rekordzie nietknięte — odfiltrowywane są dopiero przy
+czytaniu. Gdyby któraś kategoria miała wrócić, wystarczy dopisać ją do
+`TAGI_KATEGORIE`; nic nie trzeba wgrywać ponownie.
+
 ## v1.34 — 1 września 2026
 
 **Wyszukiwarka przepisów na pół wiersza, filtry obok niej.** Pole zajmowało
