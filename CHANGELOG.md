@@ -10,6 +10,15 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.36 — 1 września 2026
+
+**Plank zamiast hollow holdu w teście sprawnościowym.** Podmienione wszędzie:
+etykieta pola, nagłówek tabeli, opis kolejności testu, opis wydarzenia
+w eksporcie do kalendarza `.ics` oraz nazwa pola w zapisanych danych.
+
+Poprzedni bój nie zostawił po sobie ani jednego wyniku, więc zniknął
+z aplikacji bez śladu — bez pola w danych i bez kodu na starsze zapisy.
+
 ## v1.35 — 1 września 2026
 
 **Rozpoznawane są tylko tagi `meal/` i `meat/`.** Vault ma ich więcej —

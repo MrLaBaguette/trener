@@ -426,7 +426,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.35";
+const WERSJA_APKI = "1.36";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1774,7 +1774,7 @@ export default function Mockup() {
      psuje porównanie. Podgląd przed zapisem jest obowiązkowy. */
   const [raportPodglad, setRaportPodglad] = useState(null);
   const [testForm, setTestForm] = useState(() =>
-    ({ date: dzisIso(), hollow: "", pull: "", dip: "" }));
+    ({ date: dzisIso(), plank: "", pull: "", dip: "" }));
   const [skladForm, setSkladForm] = useState(() =>
     ({ date: dzisIso(), kind: "DEXA", weight: "", fat: "", lean: "" }));
 
@@ -1786,11 +1786,11 @@ export default function Mockup() {
     if (Number.isNaN(p)) { window.alert("Bez podciągnięć test nie ma treści."); return; }
     setTesty((prev) => [...prev.filter((x) => x.date !== testForm.date), {
       id: Date.now(), date: testForm.date,
-      hollow: parseInt(testForm.hollow, 10) || 0, pull: p,
+      plank: parseInt(testForm.plank, 10) || 0, pull: p,
       dip: parseInt(testForm.dip, 10) || 0,
       masa: pusty ? null : latest.weight,
     }].sort((a, b) => (a.date < b.date ? -1 : 1)));
-    setTestForm({ date: dzisIso(), hollow: "", pull: "", dip: "" });
+    setTestForm({ date: dzisIso(), plank: "", pull: "", dip: "" });
   }
 
   function zapiszSklad() {
@@ -3678,13 +3678,13 @@ ZASADY:
 
           {pod === "sprawnosc" && (
             <>
-              <p className="pdesc">Kolejność sztywna: hollow hold, 15 min przerwy, podciągnięcia,
+              <p className="pdesc">Kolejność sztywna: plank, 15 min przerwy, podciągnięcia,
                 15 min przerwy, dipy. Magnezja za każdym razem. Co 8 tygodni, przed przeglądem cyklu.</p>
               <div className="prow">
                 <label>Data<input type="date" value={testForm.date}
                   onChange={(e) => setTestForm({ ...testForm, date: e.target.value })} /></label>
-                <label>Hollow hold (s)<input value={testForm.hollow} inputMode="numeric"
-                  onChange={(e) => setTestForm({ ...testForm, hollow: e.target.value })} /></label>
+                <label>Plank<input value={testForm.plank} inputMode="numeric"
+                  onChange={(e) => setTestForm({ ...testForm, plank: e.target.value })} /></label>
                 <label>Podciągnięcia<input value={testForm.pull} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, pull: e.target.value })} /></label>
                 <label>Dipy<input value={testForm.dip} inputMode="numeric"
@@ -3692,13 +3692,14 @@ ZASADY:
               </div>
               <button className="primary" onClick={zapiszTest}>Zapisz test</button>
               <table className="tbl">
-                <thead><tr><th>Data</th><th>Masa</th><th>Hollow</th><th>Podciągnięcia</th><th>Dipy</th><th>Δ podc.</th></tr></thead>
+                <thead><tr><th>Data</th><th>Masa</th><th>Plank</th><th>Podciągnięcia</th><th>Dipy</th><th>Δ podc.</th></tr></thead>
                 <tbody>
                   {TESTY.map((t,i,a) => {
                     const dp = i>0 ? t.pull - a[i-1].pull : null;
                     return (<tr key={t.id}>
                       <td>{t.date}</td><td className="n">{num(t.masa)}</td>
-                      <td className="n">{t.hollow} s</td><td className="n strong">{t.pull}</td>
+                      <td className="n">{t.plank == null ? "—" : t.plank + " s"}</td>
+                      <td className="n strong">{t.pull}</td>
                       <td className="n">{t.dip}</td>
                       <td className={"n " + (dp!=null && dp<0 ? "warn":"good")}>{dp!=null?signed(dp,0):"—"}</td>
                     </tr>);
@@ -4394,7 +4395,7 @@ ZASADY:
    Wydarzenia całodniowe + przypomnienie na 7 dni przed. */
 const OPIS = {
   pomiar: "Rano, na czczo, przed treningiem. Talia w najwęższym miejscu, pas na wysokości pępka.",
-  test: "Kolejność: hollow hold, 15 min, podciągnięcia, 15 min, dipy. Magnezja. Nie po zarwanej nocy.",
+  test: "Kolejność: plank, 15 min, podciągnięcia, 15 min, dipy. Magnezja. Nie po zarwanej nocy.",
   badanie: "Termin z KALENDARZ.md projektu.",
   faza: "Punkt decyzyjny projektu — patrz ROADMAP.md.",
   wyjazd: "Kalorie na utrzymaniu, jedno FBW, stabilizator na kostkę przy zejściach.",
