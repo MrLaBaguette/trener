@@ -10,6 +10,41 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.37 — 4 września 2026
+
+**Test sprawnościowy: edycja i usuwanie wyniku.** „Edytuj" wczytuje test do
+formularza, zapis nadpisuje wpis o tej samej dacie, „usuń" pyta o potwierdzenie
+— tak samo jak przy wymiarach i składzie ciała. Pusta tabela mówi, że jest pusta.
+
+**Masa z dnia testu do wpisania ręcznie.** Wcześniej brała się automatycznie
+z ostatniego wpisu tygodnia i nie dało się jej poprawić. Test bywa robiony
+w innym dniu niż wpis, a siła względem masy ciała rozjeżdża się, gdy podstawić
+wagę sprzed kilku dni. Puste pole nadal bierze ostatni znany pomiar i pokazuje
+go jako podpowiedź, więc wygoda zostaje.
+
+**Kolumny równej szerokości, wartości pod nagłówkami.** Nagłówki szły do lewej,
+a liczby do prawej, więc przy wąskich kolumnach wartość nie stała pod swoim
+napisem. Tabela testów ma teraz stałą siatkę i wszystko wyśrodkowane.
+Na wąskim ekranie przewija się w poziomie zamiast ściskać.
+
+**„Podciągnięcia" skrócone do „Pull-ups"**, żeby nagłówek mieścił się
+w wąskiej kolumnie.
+
+**Zmiana pod każdą liczbą, w dwóch odniesieniach.** Kliknięcie daty rozwija
+wiersz i pokazuje pod wartościami przyrost nominalny i procentowy — dla masy,
+planku, pull-upów i dipów naraz. Rzędy są podpisane w kolumnie daty:
+**od ostatniego** oraz — od trzeciego testu wzwyż — **od początku**. Przy drugim
+teście drugi rząd byłby kopią pierwszego, więc się nie pojawia; pierwszy test
+nie ma do czego się odnieść i pokazuje kreski.
+
+Zielony to postęp, czerwony regres, przy czym masa liczy się odwrotnie niż
+reszta: tam postępem jest spadek. Liczba zawsze ma znak, więc kierunek czyta się
+nawet bez koloru. Dwa odniesienia naraz pokazują to, czego jedno nie pokaże —
+regres od ostatniego testu przy wciąż dodatnim bilansie od startu.
+
+Zastąpiło to kolumnę „Δ podciągnięć", która pokazywała jedną różnicę bez
+kontekstu i zajmowała miejsce w każdym wierszu, także tam, gdzie nic nie mówiła.
+
 ## v1.36 — 1 września 2026
 
 **Plank zamiast hollow holdu w teście sprawnościowym.** Podmienione wszędzie:

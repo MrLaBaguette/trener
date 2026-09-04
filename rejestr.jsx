@@ -229,6 +229,21 @@ function etykietaTagu(t) {
     : { grupa: String(t).slice(0, i), nazwa: String(t).slice(i + 1) };
 }
 
+/* Zmiana wskaźnika w teście sprawnościowym względem poprzedniego testu:
+   nominalna i procentowa. Kierunek „dobrze" nie jest uniwersalny — przy
+   plancie, pull-upach i dipach w górę, przy masie ciała w dół. Stąd
+   `spadekDobry` zamiast sztywnej reguły „więcej = zielone". */
+function zmianaTestu(teraz, poprz, { miejsca = 0, spadekDobry = false } = {}) {
+  if (teraz == null || poprz == null) return null;
+  const d = teraz - poprz;
+  const pct = poprz ? (d / poprz) * 100 : null;
+  const ton = d === 0 ? "" : (d > 0) !== spadekDobry ? "good" : "warn";
+  return {
+    tekst: signed(d, miejsca) + (pct == null ? "" : " · " + signed(pct, 0) + "%"),
+    ton,
+  };
+}
+
 /* Progi wejścia do jadłospisu z ZYWIENIE.md. Obiad i kolacja mają ten sam
    próg, podwieczorek niższy — ciężar białkowy idzie na posiłek główny. */
 const PROGI = {
@@ -426,7 +441,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.36";
+const WERSJA_APKI = "1.37";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1220,6 +1235,9 @@ export default function Mockup() {
   const [impW, setImpW] = useState(null);
   const [impBlad, setImpBlad] = useState(null);
   const [pod, setPod] = useState("wymiary");
+  /* Który test ma rozwinięte zmiany względem poprzedniego. Jeden naraz —
+     rozwinięte wszystkie robiły z tabeli ścianę liczb. */
+  const [openTest, setOpenTest] = useState(null);
   /* Grupowanie po pobraniu zostaje domyślne: ta sama wartość mocznika
      znaczy co innego przy innej podaży białka, więc przekrój po
      parametrze jest widokiem pomocniczym, nie podstawowym. */
@@ -1774,7 +1792,7 @@ export default function Mockup() {
      psuje porównanie. Podgląd przed zapisem jest obowiązkowy. */
   const [raportPodglad, setRaportPodglad] = useState(null);
   const [testForm, setTestForm] = useState(() =>
-    ({ date: dzisIso(), plank: "", pull: "", dip: "" }));
+    ({ date: dzisIso(), plank: "", pull: "", dip: "", masa: "" }));
   const [skladForm, setSkladForm] = useState(() =>
     ({ date: dzisIso(), kind: "DEXA", weight: "", fat: "", lean: "" }));
 
@@ -1788,9 +1806,30 @@ export default function Mockup() {
       id: Date.now(), date: testForm.date,
       plank: parseInt(testForm.plank, 10) || 0, pull: p,
       dip: parseInt(testForm.dip, 10) || 0,
-      masa: pusty ? null : latest.weight,
+      /* Masa wpisana ręcznie ma pierwszeństwo: test bywa robiony w innym
+         dniu niż wpis tygodnia, a siła względem masy ciała rozjeżdża się,
+         gdy podstawimy wagę sprzed kilku dni. Puste pole nadal bierze
+         ostatni znany pomiar, żeby nie zmuszać do przepisywania. */
+      masa: liczba(testForm.masa) ?? (pusty ? null : latest.weight),
     }].sort((a, b) => (a.date < b.date ? -1 : 1)));
-    setTestForm({ date: dzisIso(), plank: "", pull: "", dip: "" });
+    setTestForm({ date: dzisIso(), plank: "", pull: "", dip: "", masa: "" });
+  }
+
+  /* Wczytanie do formularza; zapis nadpisze test o tej samej dacie —
+     tak samo jak przy wymiarach i składzie ciała. */
+  function wczytajTest(t) {
+    setTestForm({
+      date: t.date,
+      plank: t.plank == null ? "" : String(t.plank),
+      pull: t.pull == null ? "" : String(t.pull),
+      dip: t.dip == null ? "" : String(t.dip),
+      masa: t.masa == null ? "" : num(t.masa),
+    });
+  }
+
+  function usunTest(t) {
+    if (!window.confirm(`Usunąć test z ${t.date}?`)) return;
+    setTesty((prev) => prev.filter((x) => (t.id != null ? x.id !== t.id : x.date !== t.date)));
   }
 
   function zapiszSklad() {
@@ -3678,35 +3717,82 @@ ZASADY:
 
           {pod === "sprawnosc" && (
             <>
-              <p className="pdesc">Kolejność sztywna: plank, 15 min przerwy, podciągnięcia,
+              <p className="pdesc">Kolejność sztywna: plank, 15 min przerwy, pull-upy,
                 15 min przerwy, dipy. Magnezja za każdym razem. Co 8 tygodni, przed przeglądem cyklu.</p>
               <div className="prow">
                 <label>Data<input type="date" value={testForm.date}
                   onChange={(e) => setTestForm({ ...testForm, date: e.target.value })} /></label>
-                <label>Plank<input value={testForm.plank} inputMode="numeric"
+                <label>Masa (kg)<input value={testForm.masa} inputMode="decimal"
+                  placeholder={pusty ? "" : num(latest.weight)}
+                  onChange={(e) => setTestForm({ ...testForm, masa: e.target.value })} /></label>
+                <label>Plank (s)<input value={testForm.plank} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, plank: e.target.value })} /></label>
-                <label>Podciągnięcia<input value={testForm.pull} inputMode="numeric"
+                <label>Pull-ups<input value={testForm.pull} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, pull: e.target.value })} /></label>
                 <label>Dipy<input value={testForm.dip} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, dip: e.target.value })} /></label>
               </div>
               <button className="primary" onClick={zapiszTest}>Zapisz test</button>
-              <table className="tbl">
-                <thead><tr><th>Data</th><th>Masa</th><th>Plank</th><th>Podciągnięcia</th><th>Dipy</th><th>Δ podc.</th></tr></thead>
-                <tbody>
-                  {TESTY.map((t,i,a) => {
-                    const dp = i>0 ? t.pull - a[i-1].pull : null;
-                    return (<tr key={t.id}>
-                      <td>{t.date}</td><td className="n">{num(t.masa)}</td>
-                      <td className="n">{t.plank == null ? "—" : t.plank + " s"}</td>
-                      <td className="n strong">{t.pull}</td>
-                      <td className="n">{t.dip}</td>
-                      <td className={"n " + (dp!=null && dp<0 ? "warn":"good")}>{dp!=null?signed(dp,0):"—"}</td>
-                    </tr>);
-                  })}
-                </tbody>
-              </table>
-              <p className="note">Podciągnięcia rosną i od siły, i od ubytku masy. Jeśli stoją mimo redukcji, to sygnał utraty mięśni — szybszy niż DEXA.</p>
+
+              {TESTY.length === 0 ? (
+                <div className="pempty"><p>Brak testów. Pierwszy wynik wpisz powyżej.</p></div>
+              ) : (
+              <div className="tblwrap">
+                {/* Kolumny równej szerokości i wszystko wyśrodkowane, żeby
+                    wartość stała dokładnie pod swoim nagłówkiem. */}
+                <table className="tbl rowny">
+                  <thead><tr><th>Data</th><th>Masa</th><th>Plank</th><th>Pull-ups</th><th>Dipy</th><th className="wact" /></tr></thead>
+                  <tbody>
+                    {TESTY.map((t,i,a) => {
+                      const klucz = t.id || t.date;
+                      const otwarty = openTest === klucz;
+                      const p = i > 0 ? a[i-1] : null;
+                      /* Odniesienie do pierwszego testu ma sens dopiero od trzeciego:
+                         przy drugim „od początku" i „od ostatniego" to ta sama liczba. */
+                      const odPoczatku = i >= 2;
+                      /* Masa liczona odwrotnie niż reszta: spadek to postęp. */
+                      const wobec = (baza) => ({
+                        masa: zmianaTestu(t.masa, baza && baza.masa, { miejsca: 1, spadekDobry: true }),
+                        plank: zmianaTestu(t.plank, baza && baza.plank),
+                        pull: zmianaTestu(t.pull, baza && baza.pull),
+                        dip: zmianaTestu(t.dip, baza && baza.dip),
+                      });
+                      const zmOst = wobec(p);
+                      const zmPocz = odPoczatku ? wobec(a[0]) : null;
+                      const linia = (z) => (
+                        <em className={"tdelta " + (z ? z.ton : "")}>{z ? z.tekst : "—"}</em>
+                      );
+                      const delta = (k) => otwarty && (
+                        <>{linia(zmOst[k])}{zmPocz && linia(zmPocz[k])}</>
+                      );
+                      return (<tr key={klucz} className={otwarty ? "trozw" : ""}>
+                        <td>
+                          <button className="rozwbtn" title={otwarty ? "Zwiń" : "Pokaż zmianę od poprzedniego testu"}
+                                  onClick={() => setOpenTest(otwarty ? null : klucz)}>{t.date}</button>
+                          {otwarty && <em className="tdelta tetykieta">od ostatniego</em>}
+                          {otwarty && zmPocz && <em className="tdelta tetykieta">od początku</em>}
+                        </td>
+                        <td className="n">{num(t.masa)}{delta("masa")}</td>
+                        <td className="n">{t.plank == null ? "—" : t.plank + " s"}{delta("plank")}</td>
+                        <td className="n strong">{t.pull}{delta("pull")}</td>
+                        <td className="n">{t.dip}{delta("dip")}</td>
+                        <td className="n wact">
+                          <button className="mini" title="Wczytaj do formularza"
+                                  onClick={() => wczytajTest(t)}>edytuj</button>
+                          <button className="mini ghost" title="Usuń test"
+                                  onClick={() => usunTest(t)}>usuń</button>
+                        </td>
+                      </tr>);
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              )}
+              <p className="note">Kliknij datę, żeby pod każdą liczbą zobaczyć zmianę — nominalną i procentową.
+                Od trzeciego testu dochodzi drugi rząd, liczony od pierwszego wyniku.
+                Przy masie zielony jest spadek, przy pozostałych wzrost.
+                Pull-upy rosną i od siły, i od ubytku masy, dlatego masa z dnia testu jest tu istotna:
+                jeśli stoją mimo redukcji, to sygnał utraty mięśni, szybszy niż DEXA.</p>
             </>
           )}
 
@@ -4912,6 +4998,27 @@ const CSS = `
   color:var(--ink-2);text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);font-weight:500}
 .tbl td{padding:7px 8px;border-bottom:1px solid var(--hair)}
 .tbl .n{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:right}
+/* Wariant z kolumnami równej szerokości. Domyślnie nagłówek idzie do lewej,
+   a liczba do prawej — przy wąskich kolumnach wartość przestaje stać pod
+   swoim napisem. Tu jedno i drugie jest wyśrodkowane. */
+.tbl.rowny{table-layout:fixed;min-width:560px}
+.tbl.rowny th,.tbl.rowny td,.tbl.rowny .n{text-align:center;padding-left:4px;padding-right:4px}
+.tbl.rowny .wact{width:92px}
+.tbl.rowny tr.trozw td{vertical-align:top}
+/* Zmiana od poprzedniego testu, pod samą wartością. Kolor niesie kierunek,
+   ale liczba i tak jest ze znakiem — żeby nie zależeć wyłącznie od barwy. */
+/* Stała wysokość linii, nie mnożnik: podpis rzędu jest mniejszy od liczb,
+   a przy line-height zależnym od czcionki drugi rząd rozjeżdżał się o piksel. */
+.tdelta{display:block;font-style:normal;margin-top:3px;white-space:nowrap;line-height:14px;
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-2)}
+.tdelta.good{color:var(--good)}
+.tdelta.warn{color:var(--warn)}
+/* Podpis rzędu w kolumnie daty — mówi, do czego odnoszą się liczby obok. */
+.tetykieta{letter-spacing:.04em;text-transform:uppercase;font-size:8.5px;opacity:.75}
+.rozwbtn{background:none;border:0;padding:0;cursor:pointer;color:var(--ink);
+  font-family:inherit;font-size:inherit;text-decoration:underline;
+  text-decoration-style:dotted;text-underline-offset:3px}
+.rozwbtn:hover{color:var(--plan)}
 .tbl .warn{color:var(--warn)}.tbl .good{color:var(--good)}
 .silabar{display:flex;gap:6px;align-items:flex-end;height:90px;padding-bottom:16px;position:relative}
 .silacol{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative}
