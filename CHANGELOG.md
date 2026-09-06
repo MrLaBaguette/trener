@@ -10,6 +10,26 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.38 — 6 września 2026
+
+**Cardio w ogóle zaczęło zapisywać.** Formularz był atrapą z czasów makiety —
+pola bez stanu, przycisk bez obsługi kliknięcia — więc z tej zakładki nic nie
+dało się dodać. Teraz zapisuje, edytuje i usuwa, tak jak sprawność.
+
+**Został sam basen 400 m, doszła masa.** Marsz na 3 km i tętno spoczynkowe
+wyleciały. Masa stoi obok czasu, bo te same 400 m przy niższej wadze to inny
+wysiłek — bez niej poprawa czasu nie mówi, czy wzrosła wydolność, czy tylko
+ubyło kilogramów. Puste pole masy bierze ostatni znany pomiar i pokazuje go
+jako podpowiedź.
+
+**Zmiana pod każdą wartością, jak w sprawności.** Kliknięcie daty rozwija rzędy
+„od ostatniego" i — od trzeciego pomiaru — „od początku". Przy obu wskaźnikach
+postępem jest spadek: krótszy czas i niższa masa są zielone.
+
+Czas przyjmowany jest w zapisie minuty:sekundy i normalizowany przy zapisie,
+więc „9:5" i „9:05" to jedna wartość, a nie dwie. Różnice liczą się na
+sekundach i wracają w tym samym zapisie — 9:48 → 9:05 pokazuje się jako −0:43.
+
 ## v1.37 — 4 września 2026
 
 **Test sprawnościowy: edycja i usuwanie wyniku.** „Edytuj" wczytuje test do

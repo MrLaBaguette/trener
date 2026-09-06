@@ -244,6 +244,38 @@ function zmianaTestu(teraz, poprz, { miejsca = 0, spadekDobry = false } = {}) {
   };
 }
 
+/* Czas z basenu zapisuje się stoperem, więc „9:12" jest naturalniejsze niż
+   552 sekundy — ale odejmować trzeba na sekundach. Przyjmujemy też samą
+   liczbę sekund, gdyby ktoś wpisał ją wprost. */
+function sekundyZ(t) {
+  const s = String(t == null ? "" : t).trim().replace(",", ".");
+  if (!s) return null;
+  const m = s.match(/^(\d+):([0-5]?\d(?:\.\d+)?)$/);
+  if (m) return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
+  const sam = parseFloat(s);
+  return Number.isFinite(sam) && /^[\d.]+$/.test(s) ? sam : null;
+}
+
+function czasZe(sek) {
+  if (sek == null || !Number.isFinite(sek)) return "—";
+  const a = Math.round(Math.abs(sek));
+  return `${Math.floor(a / 60)}:${String(a % 60).padStart(2, "0")}`;
+}
+
+/* Zmiana czasu na dystansie. Tu krótszy zawsze znaczy lepszy, więc kierunek
+   jest sztywny — inaczej niż przy `zmianaTestu`, gdzie zależy od wskaźnika. */
+function zmianaCzasu(teraz, poprz) {
+  const a = sekundyZ(teraz), b = sekundyZ(poprz);
+  if (a == null || b == null) return null;
+  const d = a - b;
+  const pct = b ? (d / b) * 100 : null;
+  const nom = d === 0 ? "0:00" : (d > 0 ? "+" : "−") + czasZe(d);
+  return {
+    tekst: nom + (pct == null ? "" : " · " + signed(pct, 0) + "%"),
+    ton: d === 0 ? "" : d < 0 ? "good" : "warn",
+  };
+}
+
 /* Progi wejścia do jadłospisu z ZYWIENIE.md. Obiad i kolacja mają ten sam
    próg, podwieczorek niższy — ciężar białkowy idzie na posiłek główny. */
 const PROGI = {
@@ -441,7 +473,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.37";
+const WERSJA_APKI = "1.38";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1238,6 +1270,8 @@ export default function Mockup() {
   /* Który test ma rozwinięte zmiany względem poprzedniego. Jeden naraz —
      rozwinięte wszystkie robiły z tabeli ścianę liczb. */
   const [openTest, setOpenTest] = useState(null);
+  const [openCardio, setOpenCardio] = useState(null);
+  const [cardioForm, setCardioForm] = useState(() => ({ date: dzisIso(), plyw: "", masa: "" }));
   /* Grupowanie po pobraniu zostaje domyślne: ta sama wartość mocznika
      znaczy co innego przy innej podaży białka, więc przekrój po
      parametrze jest widokiem pomocniczym, nie podstawowym. */
@@ -1830,6 +1864,34 @@ export default function Mockup() {
   function usunTest(t) {
     if (!window.confirm(`Usunąć test z ${t.date}?`)) return;
     setTesty((prev) => prev.filter((x) => (t.id != null ? x.id !== t.id : x.date !== t.date)));
+  }
+
+  /* Cardio. Do v1.37 formularz był atrapą — pola bez stanu i przycisk bez
+     obsługi — więc nic się stąd nie zapisywało. */
+  function zapiszCardio() {
+    const sek = sekundyZ(cardioForm.plyw);
+    if (sek == null) { window.alert("Bez czasu na 400 m nie ma czego zapisać. Wpisz go w formacie 9:12."); return; }
+    setCardio((prev) => [...prev.filter((x) => x.date !== cardioForm.date), {
+      id: Date.now(), date: cardioForm.date,
+      /* Zapisujemy znormalizowany zapis, żeby „9:5" i „9:05" nie były
+         dwiema różnymi wartościami w tabeli. */
+      plyw: czasZe(sek),
+      masa: liczba(cardioForm.masa) ?? (pusty ? null : latest.weight),
+    }].sort((a, b) => (a.date < b.date ? -1 : 1)));
+    setCardioForm({ date: dzisIso(), plyw: "", masa: "" });
+  }
+
+  function wczytajCardio(c) {
+    setCardioForm({
+      date: c.date,
+      plyw: c.plyw == null ? "" : String(c.plyw),
+      masa: c.masa == null ? "" : num(c.masa),
+    });
+  }
+
+  function usunCardio(c) {
+    if (!window.confirm(`Usunąć pomiar cardio z ${c.date}?`)) return;
+    setCardio((prev) => prev.filter((x) => (c.id != null ? x.id !== c.id : x.date !== c.date)));
   }
 
   function zapiszSklad() {
@@ -3799,22 +3861,69 @@ ZASADY:
           {pod === "cardio" && (
             <>
               <p className="pdesc">Osobny dzień od testu siłowego. Basen 400 m stylem dowolnym,
-                marsz na stałej trasie 3 km. Tętno spoczynkowe jako średnia tygodnia.</p>
+                ten sam basen i ta sama pora dnia. Czas w zapisie minuty:sekundy.</p>
               <div className="prow">
-                <label>Data<input type="date" defaultValue="2026-12-20" /></label>
-                <label>Basen 400 m<input placeholder="9:12" /></label>
-                <label>Marsz 3 km<input placeholder="25:20" /></label>
-                <label>Tętno spocz.<input placeholder="58" /></label>
+                <label>Data<input type="date" value={cardioForm.date}
+                  onChange={(e) => setCardioForm({ ...cardioForm, date: e.target.value })} /></label>
+                <label>Basen 400 m<input value={cardioForm.plyw} placeholder="9:12"
+                  onChange={(e) => setCardioForm({ ...cardioForm, plyw: e.target.value })} /></label>
+                <label>Masa (kg)<input value={cardioForm.masa} inputMode="decimal"
+                  placeholder={pusty ? "" : num(latest.weight)}
+                  onChange={(e) => setCardioForm({ ...cardioForm, masa: e.target.value })} /></label>
               </div>
-              <button className="primary">Zapisz test</button>
-              <table className="tbl">
-                <thead><tr><th>Data</th><th>Basen 400 m</th><th>Marsz 3 km</th><th>Tętno spocz.</th></tr></thead>
-                <tbody>{CARDIO.map((c)=>(
-                  <tr key={c.id}><td>{c.date}</td><td className="n">{c.plyw}</td>
-                    <td className="n">{c.marsz}</td><td className="n">{c.hr}</td></tr>))}
-                </tbody>
-              </table>
-              <p className="note">Przy astmie tętno nie jest miarodajnym wskaźnikiem intensywności — tu służy wyłącznie jako trend spoczynkowy.</p>
+              <button className="primary" onClick={zapiszCardio}>Zapisz test</button>
+
+              {CARDIO.length === 0 ? (
+                <div className="pempty"><p>Brak pomiarów. Pierwszy czas wpisz powyżej.</p></div>
+              ) : (
+              <div className="tblwrap">
+                <table className="tbl rowny">
+                  <thead><tr><th>Data</th><th>Basen 400 m</th><th>Masa</th><th className="wact" /></tr></thead>
+                  <tbody>
+                    {CARDIO.map((c,i,a) => {
+                      const klucz = c.id || c.date;
+                      const otwarty = openCardio === klucz;
+                      const p = i > 0 ? a[i-1] : null;
+                      const odPoczatku = i >= 2;
+                      /* Oba wskaźniki liczone tak samo: mniej znaczy lepiej.
+                         Krótszy czas to postęp, niższa masa też. */
+                      const wobec = (baza) => ({
+                        plyw: zmianaCzasu(c.plyw, baza && baza.plyw),
+                        masa: zmianaTestu(c.masa, baza && baza.masa, { miejsca: 1, spadekDobry: true }),
+                      });
+                      const zmOst = wobec(p);
+                      const zmPocz = odPoczatku ? wobec(a[0]) : null;
+                      const linia = (z) => (
+                        <em className={"tdelta " + (z ? z.ton : "")}>{z ? z.tekst : "—"}</em>
+                      );
+                      const delta = (k) => otwarty && (
+                        <>{linia(zmOst[k])}{zmPocz && linia(zmPocz[k])}</>
+                      );
+                      return (<tr key={klucz} className={otwarty ? "trozw" : ""}>
+                        <td>
+                          <button className="rozwbtn" title={otwarty ? "Zwiń" : "Pokaż zmianę"}
+                                  onClick={() => setOpenCardio(otwarty ? null : klucz)}>{c.date}</button>
+                          {otwarty && <em className="tdelta tetykieta">od ostatniego</em>}
+                          {otwarty && zmPocz && <em className="tdelta tetykieta">od początku</em>}
+                        </td>
+                        <td className="n strong">{c.plyw || "—"}{delta("plyw")}</td>
+                        <td className="n">{num(c.masa)}{delta("masa")}</td>
+                        <td className="n wact">
+                          <button className="mini" title="Wczytaj do formularza"
+                                  onClick={() => wczytajCardio(c)}>edytuj</button>
+                          <button className="mini ghost" title="Usuń pomiar"
+                                  onClick={() => usunCardio(c)}>usuń</button>
+                        </td>
+                      </tr>);
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              )}
+              <p className="note">Kliknij datę, żeby zobaczyć zmianę — od ostatniego pomiaru, a od trzeciego
+                także od pierwszego. Zielony to postęp: przy czasie i przy masie postępem jest spadek.
+                Masa stoi obok czasu, bo te same 400 m przy niższej wadze to inny wysiłek —
+                bez niej poprawa czasu nie mówi, czy wzrosła wydolność, czy tylko ubyło kilogramów.</p>
             </>
           )}
 
