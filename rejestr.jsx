@@ -409,6 +409,52 @@ const SPEC_CARDIO = {
   masa: { miejsca: 1, spadekDobry: true },
 };
 
+/* ── Najświeższa zapisana waga ─────────────────────────────
+   Wagę z datą niesie dziś sześć miejsc, a kafel „Wykonanie" pokazywał
+   wyłącznie trend trzytygodniowy — liczbę z założenia opóźnioną. Przy
+   wyraźnym spadku pulpit podawał więc wartość sprzed dwóch tygodni,
+   mimo świeżego wpisu.
+
+   Kolejność na liście jest zarazem rozstrzygnięciem remisu: przy tej samej
+   dacie wygrywa zamknięcie tygodnia, bo jest średnią z okresu, a nie
+   pojedynczym wejściem na wagę.
+   ────────────────────────────────────────────────────────── */
+const ZRODLA_WAGI = [
+  { klucz: "tydzien", opis: "zamknięcie tygodnia" },
+  { klucz: "dzienne", opis: "ważenie" },
+  { klucz: "sklad", opis: "skład ciała" },
+  { klucz: "wymiary", opis: "wymiary" },
+  { klucz: "test", opis: "test sprawnościowy" },
+  { klucz: "cardio", opis: "cardio" },
+];
+
+/* „2026-09-20" → „20.09". Po polsku dzień idzie przed miesiącem, a sam
+   skrót ISO czyta się wtedy jako 9 dnia dwudziestego miesiąca. */
+function dzienMiesiac(iso) {
+  const [, m, dz] = String(iso).split("-");
+  return dz && m ? `${dz}.${m}` : String(iso);
+}
+
+function ostatniaWaga({ entries, dzienne, skany, wymiary, testy, cardio }) {
+  const kand = [];
+  const dodaj = (klucz, data, waga) => {
+    if (data && waga != null && Number.isFinite(waga)) kand.push({ klucz, data, waga });
+  };
+  (entries || []).forEach((e) => dodaj("tydzien", e.date, e.weight));
+  Object.entries(dzienne || {}).forEach(([iso, x]) => dodaj("dzienne", iso, x && x.waga));
+  (skany || []).forEach((s) => dodaj("sklad", s.date, s.weight));
+  (wymiary || []).forEach((w) => dodaj("wymiary", w.date, w.masa));
+  (testy || []).forEach((t) => dodaj("test", t.date, t.masa));
+  (cardio || []).forEach((c) => dodaj("cardio", c.date, c.masa));
+  if (!kand.length) return null;
+  const ranga = (k) => ZRODLA_WAGI.findIndex((z) => z.klucz === k);
+  kand.sort((a, b) => (a.data === b.data
+    ? ranga(a.klucz) - ranga(b.klucz)
+    : (a.data < b.data ? 1 : -1)));
+  const w = kand[0];
+  return { ...w, opis: (ZRODLA_WAGI.find((z) => z.klucz === w.klucz) || {}).opis };
+}
+
 /* Progi wejścia do jadłospisu z ZYWIENIE.md. Obiad i kolacja mają ten sam
    próg, podwieczorek niższy — ciężar białkowy idzie na posiłek główny. */
 const PROGI = {
@@ -606,7 +652,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.42";
+const WERSJA_APKI = "1.43";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -2454,6 +2500,13 @@ ZASADY:
     : series[series.length - 1];
   const plan = planAt(latest.date);
   const variance = latest.trend - plan;
+  /* Kafel „Wykonanie" pokazuje to, co zważone najpóźniej — z dowolnego
+     źródła. Odchylenie i prognoza zostają na trendzie, bo na nim stoi cała
+     arytmetyka roadmapy; podpisy mówią wprost, która liczba skąd jest. */
+  const wagaOstatnia = useMemo(() => ostatniaWaga({
+    entries: ENTRIES, dzienne: DZIENNE, skany: SCANS,
+    wymiary: WYMIARY, testy: TESTY, cardio: CARDIO,
+  }), [ENTRIES, DZIENNE, SCANS, WYMIARY, TESTY, CARDIO]);
   const phase = phaseAt(latest.date);
   const startDat = ustawienia.kamienie[0].date;
   const celDat = ustawienia.kamienie[ustawienia.kamienie.length - 1].date;
@@ -2835,8 +2888,12 @@ ZASADY:
         <div className="ledger cztery">
           <div className="col">
             <span className="lbl">Wykonanie</span>
-            <span className="big">{num(latest.trend)}<em>kg</em></span>
-            <span className="sub">trend z 3 tygodni</span>
+            <span className="big">{num(wagaOstatnia ? wagaOstatnia.waga : latest.trend)}<em>kg</em></span>
+            <span className="sub">
+              {wagaOstatnia
+                ? `${wagaOstatnia.opis} ${dzienMiesiac(wagaOstatnia.data)} · trend ${num(latest.trend)}`
+                : "trend z 3 tygodni"}
+            </span>
           </div>
           <div className="col">
             <span className="lbl">Plan</span>
@@ -2846,7 +2903,9 @@ ZASADY:
           <div className={"col var " + (variance <= 0.3 ? "ok" : "off")}>
             <span className="lbl">Odchylenie</span>
             <span className="big">{signed(variance)}<em>kg</em></span>
-            <span className="sub">{variance <= 0.3 ? "w planie" : "powyżej planu"}</span>
+            {/* Wprost, że to trend, a nie liczba z kafla obok — inaczej
+                odchylenie nie zgadza się z „Wykonanie minus Plan". */}
+            <span className="sub">trend vs plan · {variance <= 0.3 ? "w planie" : "powyżej planu"}</span>
           </div>
           <div className="col">
             <span className="lbl">Cel dzienny</span>

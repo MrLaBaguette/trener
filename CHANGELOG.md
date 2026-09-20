@@ -10,6 +10,25 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.43 — 20 września 2026
+
+**Kafel „Wykonanie" pokazuje najświeższą zważoną wartość.** Do tej pory był
+to zawsze trend trzytygodniowy, czyli liczba z założenia opóźniona — przy
+wyraźnym spadku pulpit podawał 93,5 kg w dniu, w którym zamknięty tydzień
+miał średnią 92,9 kg.
+
+Kafel bierze teraz wagę z tego źródła, które zapisało ją najpóźniej: zamknięcia
+tygodnia, ważenia z panelu dziennego, składu ciała, wymiarów, testu
+sprawnościowego albo cardio. Podpis mówi, skąd liczba pochodzi i z którego dnia,
+a obok podaje trend — na przykład „zamknięcie tygodnia 20.09 · trend 93,5".
+Przy tej samej dacie wygrywa zamknięcie tygodnia, bo jest średnią z okresu,
+a nie pojedynczym wejściem na wagę.
+
+**Odchylenie nadal liczy się z trendu** i mówi to teraz wprost („trend vs
+plan"). Na trendzie stoi linia planu, prognoza i cała arytmetyka roadmapy,
+więc zostaje bez zmian — ale bez tego podpisu wyglądałoby na niezgodne
+z kaflem obok.
+
 ## v1.42 — 20 września 2026
 
 **Trener znowu odpowiada.** Podniesienie modelu na `claude-opus-5` w v1.41
