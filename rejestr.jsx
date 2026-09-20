@@ -51,6 +51,14 @@ const dOf = (s) => d(s);
    Arytmetyki tu nie ma. Liczby wylicza kod i podaje gotowe.
    ══════════════════════════════════════════════════════════ */
 
+/* Modele wołane przez apkę — w jednym miejscu, żeby nie trzeba ich było
+   szukać po dwóch wywołaniach fetch. Trener odpowiada raz w tygodniu i tam
+   liczy się wyłącznie jakość wnioskowania, więc idzie najmocniejszy model.
+   Kalkulator makro wyciąga liczby z opisu dania, robi to często i w zupełności
+   wystarcza mu szybszy. */
+const MODEL_TRENERA = "claude-opus-5";
+const MODEL_KALKULATORA = "claude-sonnet-5";
+
 const KONTEKST_TRENERA = `
 Jesteś Ronnie — trener personalny i specjalista przygotowania motorycznego.
 Odpowiadasz na cotygodniowy raport. Piszesz po polsku.
@@ -113,7 +121,31 @@ REGUŁY, KTÓRE MUSISZ RESPEKTOWAĆ
 - Kolejność ustępstw przy obsunięciu: najpierw termin, potem tempo,
   a NIGDY białko i sen.
 - Deficyt robimy jedzeniem i krokami, nie dokładaniem treningu.
-- Pojedynczy odczyt wagi nic nie znaczy. Komentujesz wyłącznie średnią.
+- Pojedynczy odczyt wagi nic nie znaczy — ale „średnia wagi z tego okresu"
+  w raporcie JEST średnią i traktujesz ją poważnie. Nie odrzucaj jej jako
+  pomiaru z jednego dnia. Trend trzytygodniowy z założenia reaguje
+  z opóźnieniem: gdy średnia okresu leży wyraźnie niżej niż trend, spadek
+  dopiero do trendu wchodzi. Zerowe odchylenie trendu nie znaczy wtedy,
+  że waga stoi, i nie wolno tego tak opisywać.
+
+CZEGO OD CIEBIE OCZEKUJE
+Jesteś trenerem, nie komentatorem. Masz mieć zdanie i je powiedzieć.
+- Zajmij stanowisko. „Poczekajmy na kolejny pomiar" jest odpowiedzią tylko
+  wtedy, gdy mówisz, na co konkretnie czekasz, jaka wartość coś przesądzi
+  i co zrobisz, kiedy ją zobaczysz.
+- Wiąż sygnały ze sobą, zamiast wypisywać je obok siebie. Niedobór białka
+  przy deficycie i rozbitym śnie to jedna sprawa, nie trzy osobne uwagi —
+  powiedz, co z czego wynika i czym to grozi.
+- Nazwij jedną rzecz najważniejszą w tym tygodniu i powiedz wprost, co z nią
+  zrobić do następnego raportu. Jedna konkretna rzecz, nie lista życzeń.
+- Kiedy on proponuje coś, co kosztuje sygnał albo zabezpieczenie — rezygnację
+  z pomiaru, mniej białka, dokładanie objętości, skracanie snu — powiedz, co
+  przez to tracicie, i podaj swoje zdanie. Zgoda bez zastrzeżeń jest
+  odpowiedzią tylko wtedy, gdy naprawdę nie masz zastrzeżeń.
+- Nie zamykaj wątku zdaniem „nie mam podstaw, żeby to ocenić". Jeśli brakuje
+  danych, powiedz jakich, jak je zdobyć i co zrobić w międzyczasie.
+- Pochwała ma być zasłużona i konkretna. Jeśli tydzień był dobry, powiedz
+  dlaczego i co utrzymać. Jeśli był słaby, powiedz to bez owijania.
 
 CZEGO NIE WOLNO CI ROBIĆ
 - Nie zmyślaj szczegółów, których nie ma w raporcie. Nie masz logu sesji ani
@@ -527,7 +559,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.40";
+const WERSJA_APKI = "1.41";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -2246,7 +2278,7 @@ ZASADY:
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
+          model: MODEL_KALKULATORA,
           max_tokens: 1000,
           system,
           messages: [{ role: "user", content: opis }],
@@ -2472,10 +2504,32 @@ ZASADY:
     L.push(`Okres oceniany: ${dniOst} dni${latest.od ? ` (${latest.od} – ${latest.date})` : ""}` +
       (dniOst !== 7 ? "  ← to NIE jest zwykły tydzień, uwzględnij to w ocenie" : ""));
     L.push("");
+    /* Pole `weight` to średnia z okresu wpisana w formularzu, a nie pojedyncze
+       ważenie — podpisywaliśmy je „ostatni pomiar surowy" i model, słusznie
+       stosując regułę „pojedynczy odczyt nic nie znaczy", odrzucał jedyną
+       aktualną liczbę, jaką miał. Stąd komentarze o wadze stojącej w miejscu
+       przy wyraźnym spadku. */
+    const planDzis = planAt(latest.date);
+    const odchOkresu = latest.weight - planDzis;
+    L.push(`Średnia wagi z tego okresu: ${num(latest.weight)} kg  ← to JEST średnia, nie pojedyncze ważenie`);
     L.push(`Waga (trend 3-tyg.): ${num(latest.trend)} kg`);
-    L.push(`Plan na dziś: ${num(planAt(latest.date))} kg`);
-    L.push(`Odchylenie: ${variance >= 0 ? "+" : "−"}${num(Math.abs(variance))} kg`);
-    L.push(`Ostatni pomiar surowy: ${num(latest.weight)} kg`);
+    L.push(`Plan na dziś: ${num(planDzis)} kg`);
+    L.push(`Odchylenie trendu od planu: ${variance >= 0 ? "+" : "−"}${num(Math.abs(variance))} kg`);
+    L.push(`Odchylenie średniej z okresu od planu: ${odchOkresu >= 0 ? "+" : "−"}${num(Math.abs(odchOkresu))} kg`);
+    L.push(`  (Trend uśrednia trzy tygodnie i z założenia reaguje z opóźnieniem.`);
+    L.push(`   Gdy średnia okresu leży wyraźnie niżej niż trend, spadek dopiero do`);
+    L.push(`   trendu wchodzi — zerowe odchylenie trendu NIE znaczy wtedy, że waga stoi.)`);
+    /* Surowe ważenia, jeśli były wpisane w panelu dziennym. To jedyne miejsce,
+       w którym widać przebieg wewnątrz okresu, a nie samą średnią. */
+    const wagiDni = [];
+    for (let i = 0; i < dniOst; i++) {
+      const iso = isoLokalne(new Date(d(latest.date) - (dniOst - 1 - i) * 864e5));
+      const wg = DZIENNE[iso] && DZIENNE[iso].waga;
+      if (wg != null) wagiDni.push(`${iso.slice(5)}: ${num(wg)}`);
+    }
+    if (wagiDni.length >= 2) {
+      L.push(`Ważenia dzienne w tym okresie (surowe): ${wagiDni.join(" · ")}`);
+    }
     L.push(`Od startu: ${num(latest.trend - ustawienia.kamienie[0].weight)} kg`);
     if (series.length >= 2) {
       const p = series[series.length - 2];
@@ -2586,7 +2640,7 @@ ZASADY:
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
+          model: MODEL_TRENERA,
           max_tokens: 1000,
           system: KONTEKST_TRENERA,
           messages: [{ role: "user", content: raport + flagi }],

@@ -10,6 +10,34 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.41 — 20 września 2026
+
+**Raport podawał trenerowi wagę pod złą etykietą.** Średnia z okresu wpisana
+w formularzu szła do raportu jako „Ostatni pomiar surowy". Prompt każe
+komentować wyłącznie średnie i ignorować pojedyncze odczyty — więc model,
+stosując regułę poprawnie, odrzucał jedyną aktualną liczbę, jaką dostał,
+i opierał się na trendzie trzytygodniowym. Stąd zdania w rodzaju „waga trzyma
+się w miejscu, zero odchylenia" w tygodniu, w którym waga wyraźnie spadała.
+
+Raport podaje teraz osobno **średnią z okresu** i **trend**, dwa odchylenia od
+planu zamiast jednego, oraz zdanie wprost, że trend reaguje z opóźnieniem
+i zerowe odchylenie trendu nie znaczy, że waga stoi. Doszły też **surowe
+ważenia dzienne** z panelu tygodniowego — dotąd przebiegu wewnątrz tygodnia
+nie było widać wcale.
+
+**Trener dostał sekcję „czego od ciebie oczekuję".** Prompt miał kilkanaście
+zakazów i prawie nic, co każe zająć stanowisko, więc odpowiedzi wychodziły
+asekuracyjne. Teraz ma wiązać sygnały ze sobą zamiast wypisywać je obok siebie,
+nazwać jedną najważniejszą rzecz w tygodniu, powiedzieć wprost, co tracicie,
+gdy rezygnuje się z pomiaru albo obniża białko, i nie zamykać wątku zdaniem
+„nie mam podstaw, żeby to ocenić".
+
+**Model podniesiony.** Obie funkcje wołały `claude-sonnet-4-6`. Trener
+odpowiada raz w tygodniu i liczy się tam wyłącznie jakość wnioskowania, więc
+idzie na `claude-opus-5`. Kalkulator makro wyciąga liczby z opisu dania, robi
+to często i dostał `claude-sonnet-5`. Nazwy modeli są teraz w jednym miejscu,
+a nie wpisane w dwa wywołania.
+
 ## v1.40 — 20 września 2026
 
 Porządki, bez zmian w działaniu aplikacji.
