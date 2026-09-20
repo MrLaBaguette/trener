@@ -10,6 +10,26 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.40 — 20 września 2026
+
+Porządki, bez zmian w działaniu aplikacji.
+
+**Rachunek zmian w tabelach pomiarów przestał istnieć w dwóch kopiach.**
+Sprawność i cardio miały identyczną logikę rozwijanych rzędów, każda u siebie.
+Kopie się rozjeżdżają — dokładnie tak powstał błąd z bramką zgodności w v1.29 —
+więc obie korzystają teraz ze wspólnego `rzedyZmian()`, a różnią się tylko
+opisem kolumn (`SPEC_SPRAWNOSC`, `SPEC_CARDIO`).
+
+**Usunięty martwy kod.** Dwanaście reguł CSS bez pokrycia: warianty badge'ów
+i kart po starym, pięciostatusowym systemie dań (`statusDania()` zwraca dziś
+tylko dwie wartości) oraz nieużywane style importu. Zniknęło też pole
+`mealprep` z parsera przepisów — liczyło się z tagu `cookbook/`, którego od
+v1.35 nie rozpoznajemy.
+
+Plik schudł o 6,8 kB. Wydajność sprawdzona przy okazji i nie wymagała zmian:
+przerysowanie po naciśnięciu klawisza 14 ms, zapis stanu 0,02 ms, wejście
+w Cookbook z czterdziestoma przepisami bez pola `tagi` około 9 ms.
+
 ## v1.39 — 20 września 2026
 
 **Białko, tłuszcz i węgle we wpisie tygodnia i w raporcie.** Plik CSV z apki

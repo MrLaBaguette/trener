@@ -194,11 +194,9 @@ function czytajPrzepis(txt) {
     if (makro.bl == null) braki.push("błonnik");
   }
 
-  return {
-    tytul, porcje, ocena, zona, makro, tagi, posilek, braki,
-    mealprep: tagi.includes("cookbook/mealprep"),
-    tresc: txt,
-  };
+  /* Bez `mealprep` — liczyliśmy je z tagu cookbook/, a od v1.35 ta
+     kategoria nie jest rozpoznawana i nikt tego pola nie czytał. */
+  return { tytul, porcje, ocena, zona, makro, tagi, posilek, braki, tresc: txt };
 }
 
 /* Kategorie tagów, po których da się szukać. Vault ma ich więcej —
@@ -275,6 +273,62 @@ function zmianaCzasu(teraz, poprz) {
     ton: d === 0 ? "" : d < 0 ? "good" : "warn",
   };
 }
+
+/* ── Rozwijane zmiany w tabelach pomiarów ──────────────────
+   Sprawność i cardio miały ten sam rachunek w dwóch kopiach. Kopie się
+   rozjeżdżają: poprawka trafiała do jednej i nie trafiała do drugiej —
+   dokładnie tak powstał błąd z bramką zgodności w v1.29.
+
+   `spec` opisuje kolumny: `czas: true` dla wyniku w zapisie mm:ss,
+   `spadekDobry: true` tam, gdzie postępem jest spadek (masa, czas).
+   ────────────────────────────────────────────────────────── */
+function zmianyRekordu(rekord, baza, spec) {
+  const out = {};
+  for (const [k, o] of Object.entries(spec)) {
+    out[k] = o.czas
+      ? zmianaCzasu(rekord[k], baza && baza[k])
+      : zmianaTestu(rekord[k], baza && baza[k], o);
+  }
+  return out;
+}
+
+/* Wszystko, czego wiersz potrzebuje, żeby pokazać zmianę: dwa zestawy
+   różnic i gotowa funkcja renderująca komórkę. Odniesienie do pierwszego
+   rekordu ma sens dopiero od trzeciego — przy drugim „od początku"
+   i „od ostatniego" to ta sama liczba. */
+function rzedyZmian({ rekord, lista, i, otwarty, spec }) {
+  const poprzedni = i > 0 ? lista[i - 1] : null;
+  const zmOst = zmianyRekordu(rekord, poprzedni, spec);
+  const zmPocz = i >= 2 ? zmianyRekordu(rekord, lista[0], spec) : null;
+  const linia = (z, klucz) => (
+    <em key={klucz} className={"tdelta " + (z ? z.ton : "")}>{z ? z.tekst : "—"}</em>
+  );
+  return {
+    zmPocz,
+    /* Komórka pokazuje zmianę tylko po rozwinięciu wiersza. */
+    delta: (k) => otwarty && (
+      <>{linia(zmOst[k], "o")}{zmPocz && linia(zmPocz[k], "p")}</>
+    ),
+    etykiety: otwarty && (
+      <>
+        <em className="tdelta tetykieta">od ostatniego</em>
+        {zmPocz && <em className="tdelta tetykieta">od początku</em>}
+      </>
+    ),
+  };
+}
+
+const SPEC_SPRAWNOSC = {
+  /* Masa liczona odwrotnie niż wyniki siłowe: spadek to postęp. */
+  masa: { miejsca: 1, spadekDobry: true },
+  plank: {}, pull: {}, dip: {},
+};
+
+/* W cardio oba wskaźniki działają tak samo: mniej znaczy lepiej. */
+const SPEC_CARDIO = {
+  plyw: { czas: true },
+  masa: { miejsca: 1, spadekDobry: true },
+};
 
 /* Progi wejścia do jadłospisu z ZYWIENIE.md. Obiad i kolacja mają ten sam
    próg, podwieczorek niższy — ciężar białkowy idzie na posiłek główny. */
@@ -473,7 +527,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.39";
+const WERSJA_APKI = "1.40";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -3875,31 +3929,12 @@ ZASADY:
                     {TESTY.map((t,i,a) => {
                       const klucz = t.id || t.date;
                       const otwarty = openTest === klucz;
-                      const p = i > 0 ? a[i-1] : null;
-                      /* Odniesienie do pierwszego testu ma sens dopiero od trzeciego:
-                         przy drugim „od początku" i „od ostatniego" to ta sama liczba. */
-                      const odPoczatku = i >= 2;
-                      /* Masa liczona odwrotnie niż reszta: spadek to postęp. */
-                      const wobec = (baza) => ({
-                        masa: zmianaTestu(t.masa, baza && baza.masa, { miejsca: 1, spadekDobry: true }),
-                        plank: zmianaTestu(t.plank, baza && baza.plank),
-                        pull: zmianaTestu(t.pull, baza && baza.pull),
-                        dip: zmianaTestu(t.dip, baza && baza.dip),
-                      });
-                      const zmOst = wobec(p);
-                      const zmPocz = odPoczatku ? wobec(a[0]) : null;
-                      const linia = (z) => (
-                        <em className={"tdelta " + (z ? z.ton : "")}>{z ? z.tekst : "—"}</em>
-                      );
-                      const delta = (k) => otwarty && (
-                        <>{linia(zmOst[k])}{zmPocz && linia(zmPocz[k])}</>
-                      );
+                      const { delta, etykiety } = rzedyZmian({ rekord: t, lista: a, i, otwarty, spec: SPEC_SPRAWNOSC });
                       return (<tr key={klucz} className={otwarty ? "trozw" : ""}>
                         <td>
                           <button className="rozwbtn" title={otwarty ? "Zwiń" : "Pokaż zmianę od poprzedniego testu"}
                                   onClick={() => setOpenTest(otwarty ? null : klucz)}>{t.date}</button>
-                          {otwarty && <em className="tdelta tetykieta">od ostatniego</em>}
-                          {otwarty && zmPocz && <em className="tdelta tetykieta">od początku</em>}
+                          {etykiety}
                         </td>
                         <td className="n">{num(t.masa)}{delta("masa")}</td>
                         <td className="n">{t.plank == null ? "—" : t.plank + " s"}{delta("plank")}</td>
@@ -3950,28 +3985,12 @@ ZASADY:
                     {CARDIO.map((c,i,a) => {
                       const klucz = c.id || c.date;
                       const otwarty = openCardio === klucz;
-                      const p = i > 0 ? a[i-1] : null;
-                      const odPoczatku = i >= 2;
-                      /* Oba wskaźniki liczone tak samo: mniej znaczy lepiej.
-                         Krótszy czas to postęp, niższa masa też. */
-                      const wobec = (baza) => ({
-                        plyw: zmianaCzasu(c.plyw, baza && baza.plyw),
-                        masa: zmianaTestu(c.masa, baza && baza.masa, { miejsca: 1, spadekDobry: true }),
-                      });
-                      const zmOst = wobec(p);
-                      const zmPocz = odPoczatku ? wobec(a[0]) : null;
-                      const linia = (z) => (
-                        <em className={"tdelta " + (z ? z.ton : "")}>{z ? z.tekst : "—"}</em>
-                      );
-                      const delta = (k) => otwarty && (
-                        <>{linia(zmOst[k])}{zmPocz && linia(zmPocz[k])}</>
-                      );
+                      const { delta, etykiety } = rzedyZmian({ rekord: c, lista: a, i, otwarty, spec: SPEC_CARDIO });
                       return (<tr key={klucz} className={otwarty ? "trozw" : ""}>
                         <td>
                           <button className="rozwbtn" title={otwarty ? "Zwiń" : "Pokaż zmianę"}
                                   onClick={() => setOpenCardio(otwarty ? null : klucz)}>{c.date}</button>
-                          {otwarty && <em className="tdelta tetykieta">od ostatniego</em>}
-                          {otwarty && zmPocz && <em className="tdelta tetykieta">od początku</em>}
+                          {etykiety}
                         </td>
                         <td className="n strong">{c.plyw || "—"}{delta("plyw")}</td>
                         <td className="n">{num(c.masa)}{delta("masa")}</td>
@@ -5047,7 +5066,6 @@ const CSS = `
 .rej.dark .mockbar{background:var(--panel);color:var(--ink);border:1px solid var(--rule)}
 .rej.dark .themebtn{border-color:var(--ink-2);color:var(--ink);opacity:1}
 .rej.dark .primary{background:var(--ink);color:#12171A;font-weight:600}
-.rej.dark .dish.st-odrzucone{opacity:.72}
 /* Tła kategorii budowane z rgba na jasnym papierze na ciemnym tle zlewały się
    w jednolitą szarość — w ciemnym motywie kolor niesie tekst i lewa krawędź. */
 .rej.dark .e-pomiar{background:rgba(155,181,174,.14);color:#B6CFC7}
@@ -5361,13 +5379,6 @@ const CSS = `
   margin:0 0 14px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:12.5px}
 .impbox.err{border-left-color:var(--warn)}
 .impbox b{font-weight:500}
-.implist{list-style:none;margin:9px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
-.implist li{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
-  font-family:'IBM Plex Mono',monospace;font-size:11.5px}
-.implist li span:first-child{min-width:82px}
-.implist em{font-style:normal;color:var(--ink-2);font-size:10px}
-.implist b{margin-left:auto;font-size:12.5px}
-.impm{width:100%;color:var(--ink-2);font-size:10px}
 .impbox .note{margin-top:10px}
 .imp-tbl{margin-top:10px}
 .imp-tbl th{font-size:9px}
@@ -5379,17 +5390,9 @@ const CSS = `
   font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;
   text-transform:uppercase;color:var(--ink-2)}
 .exp-tog:hover{color:var(--ink)}
-.exp-caret{font-size:9px;width:10px;flex-shrink:0}
 .exp-tog .tiny-note{margin-left:auto}
 .exp-body{padding:2px 16px 16px;border-top:1px solid var(--hair)}
 .exp-body .exp-row{padding-top:14px}
-.filebtn{display:inline-flex;align-items:center;padding:9px 16px;border:1px solid var(--rule);
-  border-radius:99px;background:transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;
-  font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
-.filebtn:hover{border-color:var(--ink);color:var(--ink)}
-.filebtn input{display:none}
-.imp-blad{margin:9px 0 0;font-size:11.5px;color:var(--warn)}
-.imp-box{margin-top:12px;border:1px solid var(--rule);border-radius:var(--r-sm);padding:12px 14px}
 .imp-tbl{font-size:11.5px}
 .imp-tbl th{font-size:8.5px}
 .imp-tbl td{padding:5px 6px}
@@ -5553,15 +5556,13 @@ const CSS = `
 .pempty p{margin:0 0 8px;color:var(--ink-2)}
 .dishes{display:flex;flex-direction:column;gap:10px}
 .dish{border:1px solid var(--rule);background:var(--paper);padding:13px 15px;border-radius:var(--r)}
-.dish.st-odrzucone{opacity:.6}
-.dish.st-propozycja{border-style:dashed}
 .dtop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
 .dtop h4{margin:0;font-size:14.5px;font-weight:500;line-height:1.3}
 .badge{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
   padding:3px 8px;border:1px solid var(--rule);border-radius:99px;color:var(--ink-2);
   white-space:nowrap;flex-shrink:0}
-.b-vault{border-color:var(--good);color:var(--good)}
-.b-odrzucone{border-color:var(--warn);color:var(--warn)}
+/* statusDania() zwraca wyłącznie "wykonane" albo "kuchnia" — warianty
+   po starym, pięciostatusowym systemie nie mają jak się dopasować. */
 .b-kuchnia{border-color:var(--actual);color:var(--actual)}
 .dmacro{display:flex;gap:16px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2)}
 .dmacro b{color:var(--ink);font-size:12px}
@@ -5581,8 +5582,6 @@ const CSS = `
 .score.none{color:var(--ink-2);font-size:10px;font-style:italic}
 .dchg{font-size:12.5px;color:var(--ink-2);margin:10px 0 0;padding-left:11px;border-left:2px solid var(--rule)}
 .dact{margin-top:11px}
-.dfile{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--good)}
-.dfile.off{color:var(--ink-2)}
 .note{font-size:11.5px;color:var(--ink-2);margin:12px 0 0;font-style:italic}
 .foot{margin-top:18px;padding-top:12px;border-top:1px solid var(--hair);
   display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
