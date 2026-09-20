@@ -10,6 +10,25 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.42 — 20 września 2026
+
+**Trener znowu odpowiada.** Podniesienie modelu na `claude-opus-5` w v1.41
+skończyło się tym, że API zwracało 200, ale bez bloku tekstowego, a apka
+pokazywała tylko „Pusta odpowiedź." Trener wraca na Sonneta w bieżącej
+generacji — to nadal awans względem `claude-sonnet-4-6`, od którego
+zaczynaliśmy, tylko bez niespodzianki.
+
+**Limity tokenów z zapasem.** Było 1000, policzone na samą odpowiedź, bez
+marginesu. Trener ma teraz 4000, kalkulator 1500.
+
+**Błędy mówią, co się stało.** Oba wywołania modelu miały własną obsługę
+odpowiedzi i obie gubiły powód: trener kwitował wszystko jako „Pusta
+odpowiedź", a kalkulator jako „Spróbuj ponownie albo opisz krócej" — nawet
+gdy problem był z kluczem. Teraz jedna wspólna funkcja podaje powód
+zakończenia, rodzaje bloków w odpowiedzi i treść błędu od API, na przykład
+„API odpowiedziało błędem 401 — invalid x-api-key" albo „Powód zakończenia:
+max_tokens. Limit tokenów skończył się, zanim zaczął pisać."
+
 ## v1.41 — 20 września 2026
 
 **Raport podawał trenerowi wagę pod złą etykietą.** Średnia z okresu wpisana

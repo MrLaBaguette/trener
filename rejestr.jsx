@@ -52,12 +52,59 @@ const dOf = (s) => d(s);
    ══════════════════════════════════════════════════════════ */
 
 /* Modele wołane przez apkę — w jednym miejscu, żeby nie trzeba ich było
-   szukać po dwóch wywołaniach fetch. Trener odpowiada raz w tygodniu i tam
-   liczy się wyłącznie jakość wnioskowania, więc idzie najmocniejszy model.
-   Kalkulator makro wyciąga liczby z opisu dania, robi to często i w zupełności
-   wystarcza mu szybszy. */
-const MODEL_TRENERA = "claude-opus-5";
+   szukać po dwóch wywołaniach fetch.
+
+   Trenera podniosłem w v1.41 na `claude-opus-5` i przestał odpowiadać:
+   API zwracało 200 bez bloku tekstowego. Wracamy na Sonneta, który tu
+   działa, ale w bieżącej generacji — to nadal awans względem 4-6, od
+   którego zaczynaliśmy. Opusa da się spróbować podmianą tej jednej linii;
+   gdyby znów zamilkł, `wolajModel` powie teraz dokładnie dlaczego.
+
+   Limity tokenów są z zapasem. Poprzednie 1000 było policzone na samą
+   odpowiedź, bez marginesu — a to właśnie brak marginesu potrafi skończyć
+   się odpowiedzią bez tekstu. */
+const MODEL_TRENERA = "claude-sonnet-5";
 const MODEL_KALKULATORA = "claude-sonnet-5";
+const TOKENY_TRENERA = 4000;
+const TOKENY_KALKULATORA = 1500;
+
+/* Jedno wywołanie API dla obu funkcji. Wyciąganie tekstu i komunikaty błędów
+   siedzą tutaj, bo przy dwóch kopiach jedna zawsze zostaje z gorszą
+   diagnostyką — a komunikat „Pusta odpowiedź." nie pozwalał ustalić
+   niczego poza tym, że nie wyszło. */
+async function wolajModel({ klucz, model, maxTokens, system, tresc }) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": klucz,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model, max_tokens: maxTokens, system,
+      messages: [{ role: "user", content: tresc }],
+    }),
+  });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) {
+    /* API podaje powód w treści odpowiedzi — bez tego zostaje sam numer
+       i zgadywanie, czy to zła nazwa modelu, czy wyczerpany limit. */
+    const powod = j && j.error && j.error.message ? j.error.message : "";
+    throw new Error(`API odpowiedziało błędem ${r.status}${powod ? " — " + powod : ""}`);
+  }
+  const bloki = (j && j.content) || [];
+  const txt = bloki.filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+  if (!txt) {
+    const typy = bloki.map((c) => c.type).join(", ") || "żadnych";
+    const stop = (j && j.stop_reason) || "nieznany";
+    throw new Error(
+      `Model nie zwrócił tekstu. Powód zakończenia: ${stop}. Bloki w odpowiedzi: ${typy}.` +
+      (stop === "max_tokens" ? " Limit tokenów skończył się, zanim zaczął pisać." : "")
+    );
+  }
+  return txt;
+}
 
 const KONTEKST_TRENERA = `
 Jesteś Ronnie — trener personalny i specjalista przygotowania motorycznego.
@@ -559,7 +606,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.41";
+const WERSJA_APKI = "1.42";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -2269,27 +2316,19 @@ ZASADY:
         setLiczy(false);
         return;
       }
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ustawienia.klucz,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: MODEL_KALKULATORA,
-          max_tokens: 1000,
-          system,
-          messages: [{ role: "user", content: opis }],
-        }),
+      const txt = await wolajModel({
+        klucz: ustawienia.klucz,
+        model: MODEL_KALKULATORA,
+        maxTokens: TOKENY_KALKULATORA,
+        system,
+        tresc: opis,
       });
-      const d = await r.json();
-      const txt = (d.content || []).map((x) => x.text || "").join("");
       const czyste = txt.replace(/```json|```/g, "").trim();
       setWynik(JSON.parse(czyste));
     } catch (e) {
-      setBladAI("Nie udało się policzyć. Spróbuj ponownie albo opisz krócej.");
+      /* Powód doklejamy do komunikatu — bez niego problem z kluczem albo
+         modelem wyglądał tak samo jak zbyt długi opis dania. */
+      setBladAI("Nie udało się policzyć. " + (e.message || "Spróbuj ponownie albo opisz krócej."));
     } finally {
       setLiczy(false);
     }
@@ -2631,25 +2670,13 @@ ZASADY:
         ? "\n\nWYKRYTE SYGNAŁY (policzone przez aplikację, nie szacuj ich sam):\n" +
           sygnaly.map((f) => `- [${f.waga}] ${f.tekst}`).join("\n")
         : "\n\nWYKRYTE SYGNAŁY: brak.";
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ustawienia.klucz,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: MODEL_TRENERA,
-          max_tokens: 1000,
-          system: KONTEKST_TRENERA,
-          messages: [{ role: "user", content: raport + flagi }],
-        }),
+      const txt = await wolajModel({
+        klucz: ustawienia.klucz,
+        model: MODEL_TRENERA,
+        maxTokens: TOKENY_TRENERA,
+        system: KONTEKST_TRENERA,
+        tresc: raport + flagi,
       });
-      if (!r.ok) throw new Error("API odpowiedziało błędem " + r.status);
-      const j = await r.json();
-      const txt = (j.content || []).map((c) => (c.type === "text" ? c.text : "")).join("\n").trim();
-      if (!txt) throw new Error("Pusta odpowiedź.");
       setKom(txt);
       setSkopiowane(true);
     } catch (e) {
