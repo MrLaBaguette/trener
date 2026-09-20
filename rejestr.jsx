@@ -473,7 +473,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.38";
+const WERSJA_APKI = "1.39";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1226,6 +1226,12 @@ export default function Mockup() {
   const [podglad, setPodglad] = useState(false);
   const [waga, setWaga] = useState("");
   const [kcal, setKcal] = useState("");
+  /* Makro średnio na dzień, tak samo jak kalorie. Wpisywane ręcznie albo
+     zaciągane z CSV — plik i tak niesie te kolumny, wcześniej lądowały
+     tylko w podglądzie importu i przepadały przy zapisie. */
+  const [makroB, setMakroB] = useState("");
+  const [makroT, setMakroT] = useState("");
+  const [makroW, setMakroW] = useState("");
   const [openWaga, setOpenWaga] = useState(false);
   const [openKcal, setOpenKcal] = useState(false);
   const [dark, setDark] = useState(() => !!odczytaj(KLUCZ_USTAWIENIA, {}).ciemny);
@@ -1633,6 +1639,11 @@ export default function Mockup() {
       sila: sila + 1,
       acts: akty,
       kcal: Math.round(liczba(kcal) || 0),
+      /* null, a nie 0, gdy pole puste — zero znaczyłoby „nie jadł białka",
+         a nie „nie zmierzyłem". Raport pomija to, czego nie ma. */
+      bialko: liczba(makroB) == null ? null : Math.round(liczba(makroB)),
+      tluszcz: liczba(makroT) == null ? null : Math.round(liczba(makroT)),
+      wegle: liczba(makroW) == null ? null : Math.round(liczba(makroW)),
       cheats: cheaty,
       note: notatka,
       dni: dniOkresu,
@@ -1669,6 +1680,7 @@ export default function Mockup() {
      zostają — kasujemy tylko to, co dotyczy jednego wpisu. */
   function nowyTydzien() {
     setWaga(""); setKcal(""); setPas("");
+    setMakroB(""); setMakroT(""); setMakroW("");
     setDniWaga(Array(dniOkresu).fill(""));
     setDniKcal(Array(dniOkresu).fill(""));
     setSen(3); setFbw(2); setSila(2); setAkty([]); setCheaty(0);
@@ -1695,6 +1707,9 @@ export default function Mockup() {
     setDataWpisu(e.date);
     setWaga(num(e.weight)); setPas(e.waist == null ? "" : String(e.waist));
     setKcal(e.kcal ? String(e.kcal) : "");
+    setMakroB(e.bialko == null ? "" : String(e.bialko));
+    setMakroT(e.tluszcz == null ? "" : String(e.tluszcz));
+    setMakroW(e.wegle == null ? "" : String(e.wegle));
     setSen(e.sleep); setFbw(e.fbw); setSila(Math.max(0, e.sila - 1));
     setAkty(e.acts || []); setCheaty(e.cheats || 0);
     setNotatka(e.note || ""); setPoza(!!e.poza);
@@ -2267,6 +2282,16 @@ ZASADY:
     } else {
       setKcal(String(Math.round(imp.reduce((s, x) => s + x.kcal, 0) / imp.length)));
     }
+    /* Makro idzie średnią z dni obecnych w pliku — panel siedmiodniowy
+       mają tylko waga i kalorie, a rozbijanie białka na dni niczego by
+       tu nie dodało: do raportu i tak wchodzi średnia. */
+    const srednioZ = (k) => {
+      const v = imp.filter((x) => x[k] != null && Number.isFinite(x[k]));
+      return v.length ? String(Math.round(v.reduce((s, x) => s + x[k], 0) / v.length)) : "";
+    };
+    setMakroB(srednioZ("bialko"));
+    setMakroT(srednioZ("tluszcz"));
+    setMakroW(srednioZ("wegle"));
     setOpenKcal(true);
     setImp(null);
   }
@@ -2427,6 +2452,23 @@ ZASADY:
       L.push(`  Utrzymanie wyliczone z wagi: ${Math.round(balance.maintenance)} kcal/dzień`);
       L.push(`  Realny deficyt: ${Math.round(balance.realDeficit)} kcal/dzień`);
       L.push(`  Cel makro: białko ${cel.bialko} g · tłuszcz min. ${cel.tluszcz} g · węgle ${cel.wegle} g · błonnik ${cel.blonnik} g`);
+      /* Zjedzone makro wchodzi tylko wtedy, gdy jest zapisane — wpisy
+         sprzed v1.39 mają same kalorie i zmyślanie tu zer wprowadzałoby
+         trenera w błąd. Średnia z tych tygodni, w których coś podano. */
+      const zMakro = series.slice(-balance.n).filter((e) => e.bialko != null || e.tluszcz != null || e.wegle != null);
+      if (zMakro.length) {
+        const srM = (k) => {
+          const v = zMakro.filter((e) => e[k] != null);
+          return v.length ? Math.round(v.reduce((a, e) => a + e[k], 0) / v.length) : null;
+        };
+        const b = srM("bialko"), t = srM("tluszcz"), w = srM("wegle");
+        const czesci = [
+          b == null ? null : `białko ${b} g`,
+          t == null ? null : `tłuszcz ${t} g`,
+          w == null ? null : `węgle ${w} g`,
+        ].filter(Boolean);
+        L.push(`  Zjedzone makro (średnia z ${zMakro.length} tyg. z zapisanym makro): ${czesci.join(" · ")}`);
+      }
       L.push(`  Cheat meale: ${balance.cheats}`);
       L.push("");
     }
@@ -2924,6 +2966,31 @@ ZASADY:
                   </span>
                 );
               })()}
+            </div>
+          </div>
+
+          <div className="frow">
+            <span className="fkey">Makro <em>średnio na dzień</em></span>
+            <div className="fval makrorow">
+              {[["Białko", makroB, setMakroB, cel.bialko],
+                ["Tłuszcz", makroT, setMakroT, cel.tluszcz],
+                ["Węgle", makroW, setMakroW, cel.wegle]].map(([l, v, set, docelowo]) => {
+                const x = liczba(v);
+                const dv = x == null ? null : Math.round(x - docelowo);
+                return (
+                  <label key={l} className="makropole">
+                    <em>{l}</em>
+                    <input value={v} inputMode="numeric" placeholder={String(docelowo)}
+                           onChange={(e) => set(e.target.value)} />
+                    {/* Bez kolorowania: białko i tłuszcz to progi od dołu,
+                        a węgle wychodzą z reszty bilansu — jedna reguła
+                        „mniej znaczy gorzej" byłaby tu nieprawdą. */}
+                    <span className="makrodelta">
+                      {dv == null ? "— vs cel" : (dv === 0 ? "0" : signed(dv, 0)) + " g vs cel"}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -4384,6 +4451,10 @@ ZASADY:
                         <span><em>pas</em>{e.waist} cm</span>
                         <span><em>siła</em>{SILA[e.sila-1]}</span>
                         <span><em>kalorie</em>{e.kcal}</span>
+                        {(e.bialko != null || e.tluszcz != null || e.wegle != null) && (
+                          <span><em>makro B/T/W</em>
+                            {[e.bialko, e.tluszcz, e.wegle].map((v) => v == null ? "—" : v).join(" / ")} g</span>
+                        )}
                         <span><em>aktywności</em>{e.acts.join(", ")}</span>
                         <span><em>cheat</em>{e.cheats}</span>
                       </div>
@@ -4661,6 +4732,7 @@ function zbierzDane({ entries, komentarze, testy, cardio, wymiary, spiro, krew, 
     tygodnie: entries.map((e) => ({
       data: e.date, waga: e.weight, pas: e.waist, sen: e.sleep,
       fbw: e.fbw, sila: e.sila, aktywnosci: e.acts, kcal: e.kcal,
+      bialko: e.bialko ?? null, tluszcz: e.tluszcz ?? null, wegle: e.wegle ?? null,
       cheaty: e.cheats, notatka: e.note,
       komentarzTrenera: komentarze[e.date] || null,
     })),
@@ -4706,6 +4778,9 @@ function budujDziennikMd(entries, komentarze) {
       `- Sesje FBW: ${e.fbw}`,
       `- Siła: ${SILA[Math.max(0, e.sila - 1)]}`,
       `- Kalorie: ${e.kcal}`,
+      ...(e.bialko != null || e.tluszcz != null || e.wegle != null
+        ? [`- Makro: białko ${e.bialko ?? "—"} g · tłuszcz ${e.tluszcz ?? "—"} g · węgle ${e.wegle ?? "—"} g`]
+        : []),
       `- Aktywności: ${(e.acts || []).length ? e.acts.join(", ") : "—"}`,
       `- Cheat posiłki: ${e.cheats}`,
     ];
@@ -5437,6 +5512,13 @@ const CSS = `
    podświetlało mimo obietnicy w opisie pod tabelą. */
 .f-uwaga td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
 .f-uwaga .n.strong{color:var(--actual)}
+.makrorow{display:flex;gap:10px;flex-wrap:wrap}
+.makropole{display:flex;flex-direction:column;gap:4px;flex:1;min-width:96px}
+.makropole em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.makropole input{font-family:'IBM Plex Mono',monospace;font-size:13.5px;padding:8px 10px;width:100%;
+  border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
+.makrodelta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-2)}
 .szukajka{display:flex;align-items:center;gap:9px;margin:0 0 11px;flex-wrap:wrap}
 .szukaj-in{flex:0 1 46%;min-width:160px;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:9px 11px;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}

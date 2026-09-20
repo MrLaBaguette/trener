@@ -10,6 +10,28 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.39 — 20 września 2026
+
+**Białko, tłuszcz i węgle we wpisie tygodnia i w raporcie.** Plik CSV z apki
+żywieniowej niósł te kolumny od dawna — było je nawet widać w podglądzie
+importu — ale przy zapisie przepadały i do wpisu wchodziły same kalorie.
+Teraz są osobnym wierszem formularza, wypełniają się z CSV razem z kaloriami
+i można je poprawić ręcznie.
+
+W raporcie dla trenera doszła linia **Zjedzone makro** obok istniejącego
+**Celu makro**, więc widać wykonanie przy założeniu, a nie samo założenie.
+Średnia liczy się tylko z tygodni, w których makro faktycznie zapisano —
+wpisy sprzed tej wersji mają same kalorie i raport mówi wprost, z ilu tygodni
+liczył, zamiast podstawiać za nie zera.
+
+Przy każdym polu widać różnicę względem celu. Bez kolorowania: białko
+i tłuszcz to progi od dołu, a węgle wychodzą z reszty bilansu, więc jedna
+reguła „mniej znaczy gorzej" byłaby tu nieprawdą.
+
+Makro widać też w Dzienniku i wchodzi do eksportu `.md` oraz do pełnego
+eksportu JSON — inaczej raport i dziennik mówiłyby o tym samym tygodniu
+co innego.
+
 ## v1.38 — 6 września 2026
 
 **Cardio w ogóle zaczęło zapisywać.** Formularz był atrapą z czasów makiety —
