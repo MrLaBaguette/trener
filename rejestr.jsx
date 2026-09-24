@@ -652,7 +652,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.44";
+const WERSJA_APKI = "1.45";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1255,6 +1255,33 @@ function krewPrzekroj(krew) {
   return { grupy, parametry: [...mapa.values()] };
 }
 
+/* Flaga wyniku krwi bierze się z kolumny „Uwaga", nie z porównania
+   z zakresem — zakresy bywają opisowe („>30–50") i automat dawałby fałszywe
+   alarmy. Jedna funkcja dla importu i ręcznego wpisu, żeby oba zawsze
+   flagowały tak samo. */
+function flagaKrwi(uwaga) {
+  return /granic|podwyższ|obniż|nisk|wysok/i.test(uwaga || "") ? "uwaga" : null;
+}
+
+/* Parametry spirometrii w kolejności z wydruku. Ręczny formularz ma komplet,
+   bo z samymi FEV1 i FVC powtórzyłby stratę naprawioną w v1.30 — MEF25
+   i FEF25-75 to małe oskrzela, najsłabszy element wyniku. */
+const SPIRO_PARAMY = [
+  ["fev1", "FEV1", "l"],
+  ["fvc", "FVC", "l"],
+  ["ratio", "FEV1/FVC", "%"],
+  ["pef", "PEF", "l/s"],
+  ["mef50", "MEF50", "l/s"],
+  ["mef25", "MEF25", "l/s"],
+  ["fef2575", "FEF25-75", "l/s"],
+];
+const spiroFormPusty = () => ({
+  date: dzisIso(), fev1: "", fvc: "", ratio: "", pef: "", mef50: "", mef25: "", fef2575: "",
+});
+/* Laboratoria piszą „FEF 25-75", „FEF25–75" albo „fef25-75" — porównujemy
+   bez spacji, myślników i wielkości liter. */
+const normSpiro = (n) => String(n || "").replace(/[\s\-–—]/g, "").toLowerCase();
+
 /* Pięć wartości obserwowanych przez cały projekt. Dopasowanie luźne,
    bo laboratoria nazywają je różnie („Cholesterol HDL", „Witamina D
    (25-OH)"), ale nie-HDL to osobny parametr i nie może podszyć się
@@ -1456,6 +1483,13 @@ export default function Mockup() {
      rozwinięte wszystkie robiły z tabeli ścianę liczb. */
   const [openTest, setOpenTest] = useState(null);
   const [openCardio, setOpenCardio] = useState(null);
+  const [spiroForm, setSpiroForm] = useState(spiroFormPusty);
+  const [krewForm, setKrewForm] = useState(() => ({ date: dzisIso(), n: "", w: "", j: "", ref: "", uwaga: "" }));
+  /* Co jest właśnie edytowane — data badania albo para (data, nazwa) wyniku.
+     Bez tego zmiana daty albo nazwy przy edycji zostawiała stary wpis
+     i dokładała drugi zamiast go przenieść. */
+  const [spiroEdycja, setSpiroEdycja] = useState(null);
+  const [krewEdycja, setKrewEdycja] = useState(null);
   const [cardioForm, setCardioForm] = useState(() => ({ date: dzisIso(), plyw: "", masa: "" }));
   /* Grupowanie po pobraniu zostaje domyślne: ta sama wartość mocznika
      znaczy co innego przy innej podaży białka, więc przekrój po
@@ -2153,6 +2187,123 @@ export default function Mockup() {
       : !(x.date === s.date && x.kind === s.kind))));
   }
 
+  /* ── Spirometria: ręczny wpis ──────────────────────────
+     Do v1.44 formularz był atrapą: pola bez stanu, przycisk bez obsługi.
+     Zapis zachowuje z istniejącego badania zakres normy i uwagę każdego
+     parametru oraz pozycje spoza listy — formularz tych pól nie ma, więc
+     poprawka jednej liczby w badaniu z importu kasowałaby resztę. */
+  function zapiszSpiro() {
+    const f = spiroForm;
+    const stary = SPIRO.find((x) => x.date === (spiroEdycja || f.date))
+      || SPIRO.find((x) => x.date === f.date);
+    const staraPoz = (stary && stary.poz) || [];
+    const poz = SPIRO_PARAMY
+      .filter(([k]) => String(f[k]).trim())
+      .map(([k, n, j]) => {
+        const s = staraPoz.find((p) => normSpiro(p.n) === normSpiro(n));
+        return { n, w: String(f[k]).trim() + " " + j, ref: s ? s.ref : "", uwaga: s ? s.uwaga : "" };
+      });
+    if (!poz.length) { window.alert("Wpisz przynajmniej jeden parametr."); return; }
+    staraPoz
+      .filter((p) => !SPIRO_PARAMY.some(([, n]) => normSpiro(n) === normSpiro(p.n)))
+      .forEach((p) => poz.push(p));
+    const fev1 = liczba(f.fev1), fvc = liczba(f.fvc);
+    const ratio = liczba(f.ratio) ?? (fev1 && fvc ? Math.round((fev1 / fvc) * 1000) / 10 : null);
+    setSpiro((prev) => [
+      ...prev.filter((x) => x.date !== f.date && x.date !== spiroEdycja),
+      { id: Date.now(), date: f.date, poz, fev1, fvc, ratio },
+    ].sort((a, b) => (a.date < b.date ? -1 : 1)));
+    setSpiroForm(spiroFormPusty()); setSpiroEdycja(null);
+  }
+
+  function wczytajSpiro(x) {
+    const f = { ...spiroFormPusty(), date: x.date };
+    SPIRO_PARAMY.forEach(([k, n]) => {
+      const p = (x.poz || []).find((y) => normSpiro(y.n) === normSpiro(n));
+      const m = p && String(p.w).match(/^[\d.,]+/);
+      if (m) f[k] = m[0];
+    });
+    /* Badania sprzed v1.30 nie mają `poz` — zostały im tylko trzy pola. */
+    if (!(x.poz || []).length) {
+      if (x.fev1 != null) f.fev1 = num(x.fev1, 2);
+      if (x.fvc != null) f.fvc = num(x.fvc, 2);
+      if (x.ratio != null) f.ratio = num(x.ratio, 1);
+    }
+    setSpiroForm(f); setSpiroEdycja(x.date);
+  }
+
+  function usunSpiro(x) {
+    if (!window.confirm(`Usunąć spirometrię z ${x.date}?`)) return;
+    setSpiro((prev) => prev.filter((y) => (x.id != null ? y.id !== x.id : y.date !== x.date)));
+    if (spiroEdycja === x.date) { setSpiroForm(spiroFormPusty()); setSpiroEdycja(null); }
+  }
+
+  /* ── Krew: ręczny wpis pojedynczego wyniku ─────────────
+     Wynik trafia do pobrania z tej samej daty albo zakłada nowe. Ten sam
+     parametr w tym samym pobraniu jest nadpisywany w miejscu, nie
+     dokładany na koniec. Data zostaje po zapisie, bo z jednego pobrania
+     wpisuje się wyniki seriami. */
+  function zapiszKrew() {
+    const f = krewForm;
+    const wpisana = f.n.trim(), w = f.w.trim();
+    if (!wpisana || !w) { window.alert("Potrzebna nazwa badania i wynik."); return; }
+    const takiSam = (p, nazwa) => p.n.trim().toLowerCase() === nazwa.trim().toLowerCase();
+    /* Porównanie między pobraniami, przekrój po parametrze i wykresy idą
+       po dokładnej nazwie. Ręcznie wpisana „kreatynina" obok „Kreatynina"
+       z importu rozbijała serię na dwie i kolumna zmiany traciła odniesienie.
+       Przejmujemy więc pisownię, która już jest w rejestrze — z wyjątkiem
+       właśnie edytowanego wyniku, żeby dało się w nim poprawić literówkę. */
+    let n = wpisana;
+    for (const g of KREW) {
+      const trafienie = (g.poz || []).find((p) => takiSam(p, wpisana)
+        && !(krewEdycja && g.data === krewEdycja.data && takiSam(p, krewEdycja.n)));
+      if (trafienie) { n = trafienie.n; break; }
+    }
+    const wpis = { n, w, j: f.j.trim(), ref: f.ref.trim(), uwaga: f.uwaga.trim(), flaga: flagaKrwi(f.uwaga) };
+    setKrew((prev) => {
+      const tenSamDzien = krewEdycja && krewEdycja.data === f.date;
+      /* Edycja z przeniesieniem do innego pobrania: zdejmujemy wynik ze
+         starego miejsca, inaczej zostawałby duplikat. */
+      let grupy = krewEdycja && !tenSamDzien
+        ? prev.map((g) => (g.data !== krewEdycja.data ? g
+            : { ...g, poz: (g.poz || []).filter((p) => !takiSam(p, krewEdycja.n)) }))
+        : prev;
+      const jest = grupy.find((g) => g.data === f.date);
+      if (jest) {
+        const poz = jest.poz || [];
+        /* W tym samym pobraniu podmieniamy w miejscu edytowanego wiersza,
+           nie doklejamy na koniec — kolejność wyników ma zostać taka jak
+           na wydruku. Gdy nowa nazwa trafi na inny istniejący wynik,
+           tamten znika, żeby parametr nie wystąpił w pobraniu dwa razy. */
+        const i = poz.findIndex((p) => takiSam(p, tenSamDzien ? krewEdycja.n : n));
+        const nowa = i >= 0
+          ? poz.map((p, j) => (j === i ? wpis : p)).filter((p, j) => j === i || !takiSam(p, n))
+          : [...poz, wpis];
+        grupy = grupy.map((g) => (g.data === f.date ? { ...g, poz: nowa } : g));
+      } else {
+        grupy = [...grupy, { grupa: "Pobranie " + f.date, data: f.date, poz: [wpis] }];
+      }
+      /* Pobranie bez wyników znika — pusty nagłówek niczego nie mówi. */
+      return grupy.filter((g) => (g.poz || []).length)
+        .sort((a, b) => (a.data < b.data ? -1 : 1));
+    });
+    setKrewForm((x) => ({ ...x, n: "", w: "", j: "", ref: "", uwaga: "" }));
+    setKrewEdycja(null);
+  }
+
+  function wczytajKrew(g, x) {
+    setKrewForm({ date: g.data, n: x.n, w: x.w, j: x.j || "", ref: x.ref || "", uwaga: x.uwaga || "" });
+    setKrewEdycja({ data: g.data, n: x.n });
+  }
+
+  function usunKrew(g, xi) {
+    const x = (g.poz || [])[xi];
+    if (!x || !window.confirm(`Usunąć „${x.n}" z pobrania ${g.data}?`)) return;
+    setKrew((prev) => prev
+      .map((gr) => (gr.data !== g.data ? gr : { ...gr, poz: (gr.poz || []).filter((_, j) => j !== xi) }))
+      .filter((gr) => (gr.poz || []).length));
+  }
+
   function wgrajRaport(plik) {
     const r = new FileReader();
     r.onload = () => {
@@ -2187,7 +2338,7 @@ export default function Mockup() {
         poz: rp.pozycje.map((p) => ({
           n: p.nazwa, w: wartosc(p.wynik), j: jednostka(p.wynik),
           ref: p.zakres, uwaga: p.uwaga,
-          flaga: /granic|podwyższ|obniż|nisk|wysok/i.test(p.uwaga) ? "uwaga" : null,
+          flaga: flagaKrwi(p.uwaga),
         })),
       };
       setKrew((prev) => [...prev.filter((g) => g.data !== data), grupa]
@@ -4258,15 +4409,23 @@ ZASADY:
               <p className="pdesc">Baseline sierpień 2026, kontrola po sześciu miesiącach.
                 Sprawdza, czy basen i boks cokolwiek zmieniły w wydolności oddechowej.</p>
               <div className="prow">
-                <label>Data<input type="date" /></label>
-                <label>FEV1 (l)<input placeholder="2,9" /></label>
-                <label>FVC (l)<input placeholder="4,1" /></label>
-                <label>FEV1/FVC (%)<input placeholder="71" /></label>
+                <label>Data<input type="date" value={spiroForm.date}
+                  onChange={(e) => setSpiroForm({ ...spiroForm, date: e.target.value })} /></label>
+                {SPIRO_PARAMY.map(([k, n, j]) => (
+                  <label key={k}>{n} ({j})
+                    <input value={spiroForm[k]} inputMode="decimal"
+                      onChange={(e) => setSpiroForm({ ...spiroForm, [k]: e.target.value })} /></label>
+                ))}
               </div>
-              <button className="primary">Zapisz wynik</button>
+              <div className="imp-akcje">
+                <button className="primary" onClick={zapiszSpiro}>{spiroEdycja ? "Zapisz zmiany" : "Zapisz wynik"}</button>
+                {spiroEdycja && (
+                  <button className="ghost" onClick={() => { setSpiroForm(spiroFormPusty()); setSpiroEdycja(null); }}>Anuluj</button>
+                )}
+              </div>
 
               {SPIRO.length === 0 ? (
-                <div className="pempty"><p>Brak badań. Wgraj raport <code>.md</code> z nagłówkiem <code>typ: spirometria</code>.</p></div>
+                <div className="pempty"><p>Brak badań. Wpisz wynik powyżej albo wgraj raport <code>.md</code> z nagłówkiem <code>typ: spirometria</code>.</p></div>
               ) : (
                 <>
                   {/* Zbiorcza: trzy wartości, które porównuje się między badaniami.
@@ -4288,7 +4447,12 @@ ZASADY:
                      zamiast renderować pustą tabelę. */}
                   {SPIRO.map((x) => (
                     <div key={"p" + (x.id || x.date)} className="krewgrp">
-                      <div className="krewhead"><span>Spirometria</span><em>{x.date}</em></div>
+                      <div className="krewhead"><span>Spirometria</span>
+                        <em>{x.date}
+                          <span className="wact">
+                            <button className="mini" onClick={() => wczytajSpiro(x)}>edytuj</button>
+                            <button className="mini ghost" onClick={() => usunSpiro(x)}>usuń</button>
+                          </span></em></div>
                       {(x.poz || []).length ? (
                         <table className="tbl">
                           <tbody>
@@ -4322,15 +4486,32 @@ ZASADY:
                 razem z DEXA. Interpretacja należy do lekarza — tu trzymamy wyniki wyłącznie do porównania w czasie.</p>
 
               <div className="prow">
-                <label>Data<input type="date" /></label>
-                <label>Badanie<input placeholder="Witamina D (25-OH)" /></label>
-                <label>Wynik<input placeholder="28,4" /></label>
-                <label>Jednostka<input placeholder="ng/mL" /></label>
+                <label>Data pobrania<input type="date" value={krewForm.date}
+                  onChange={(e) => setKrewForm({ ...krewForm, date: e.target.value })} /></label>
+                <label>Badanie<input value={krewForm.n} placeholder="Witamina D (25-OH)"
+                  onChange={(e) => setKrewForm({ ...krewForm, n: e.target.value })} /></label>
+                <label>Wynik<input value={krewForm.w} placeholder="28,4"
+                  onChange={(e) => setKrewForm({ ...krewForm, w: e.target.value })} /></label>
+                <label>Jednostka<input value={krewForm.j} placeholder="ng/mL"
+                  onChange={(e) => setKrewForm({ ...krewForm, j: e.target.value })} /></label>
+                <label>Zakres<input value={krewForm.ref} placeholder="30–50"
+                  onChange={(e) => setKrewForm({ ...krewForm, ref: e.target.value })} /></label>
+                <label>Uwaga<input value={krewForm.uwaga} placeholder="np. obniżona"
+                  onChange={(e) => setKrewForm({ ...krewForm, uwaga: e.target.value })} /></label>
               </div>
-              <button className="primary">Dodaj wynik</button>
+              <div className="imp-akcje">
+                <button className="primary" onClick={zapiszKrew}>{krewEdycja ? "Zapisz zmianę" : "Dodaj wynik"}</button>
+                {krewEdycja && (
+                  <button className="ghost" onClick={() => {
+                    setKrewForm((x) => ({ ...x, n: "", w: "", j: "", ref: "", uwaga: "" })); setKrewEdycja(null);
+                  }}>Anuluj</button>
+                )}
+              </div>
+              <p className="note">Wynik trafia do pobrania z tej samej daty. Ten sam parametr wpisany drugi raz
+                nadpisuje poprzednią wartość. Słowa „granica", „podwyższony", „obniżony" w uwadze podświetlają wynik.</p>
 
               {KREW.length === 0 && (
-                <div className="pempty"><p>Brak pobrań. Wgraj raport <code>.md</code> z nagłówkiem <code>typ: krew</code>.</p></div>
+                <div className="pempty"><p>Brak pobrań. Wpisz wynik powyżej albo wgraj raport <code>.md</code> z nagłówkiem <code>typ: krew</code>.</p></div>
               )}
 
               {KREW.length > 0 && (
@@ -4367,6 +4548,10 @@ ZASADY:
                             <td className="n ku">{x.j}</td>
                             <td className="n kdelta">{dz || "—"}</td>
                             <td className="n quiet kref">{x.ref}</td>
+                            <td className="n wact">
+                              <button className="mini" onClick={() => wczytajKrew(g, x)}>edytuj</button>
+                              <button className="mini ghost" onClick={() => usunKrew(g, xi)}>usuń</button>
+                            </td>
                           </tr>
                         );
                       })}
@@ -5688,6 +5873,7 @@ const CSS = `
   font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink)}
 .krewhead em{font-style:normal;font-size:9px;letter-spacing:.04em;text-transform:none;color:var(--ink-2)}
+.krewhead .wact{margin-left:10px}
 .krewgrp .tbl td{padding:6px 8px;font-size:12.5px}
 .kn{max-width:210px}
 .kuw{display:block;font-size:10.5px;color:var(--ink-2);font-style:italic;

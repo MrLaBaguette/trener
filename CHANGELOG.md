@@ -10,6 +10,31 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.45 — 24 września 2026
+
+**Ręczne formularze spirometrii i krwi zaczęły działać.** Były atrapami od
+makiety — pola bez stanu, przyciski bez obsługi kliknięcia. Teraz obok importu
+raportu `.md` jest druga, ręczna droga, z edycją i usuwaniem jak w pozostałych
+pomiarach.
+
+**Spirometria** ma w formularzu komplet siedmiu parametrów z wydruku, łącznie
+z MEF25 i FEF25-75 — z samymi FEV1 i FVC powtórzyłaby stratę naprawioną
+w v1.30. Stosunek FEV1/FVC wylicza się sam, jeśli go nie podasz. Poprawka
+badania z importu zachowuje zakresy norm i uwagi przy każdym parametrze oraz
+pozycje, których formularz nie ma — bez tego jedna zmieniona liczba kasowałaby
+resztę. Nazwy w rodzaju „FEF 25-75" czy „FEF25–75" są rozpoznawane.
+
+**Krew** przyjmuje pojedynczy wynik z datą pobrania, nazwą, jednostką, zakresem
+i uwagą. Wynik trafia do pobrania z tej samej daty albo zakłada nowe, a data
+zostaje po zapisie, bo z jednego pobrania wpisuje się serię. Nazwa przejmuje
+pisownię, która już jest w rejestrze — „kreatynina" wpisana ręcznie łączy się
+z „Kreatynina" z importu, więc kolumna zmiany i wykresy widzą jedną serię,
+a nie dwie. Poprawka wyniku zostaje w miejscu na liście, zmiana daty przenosi
+go do innego pobrania, a pobranie bez wyników znika.
+
+Flagowanie wyników z uwagi siedzi teraz w jednej funkcji, wspólnej dla importu
+i ręcznego wpisu.
+
 ## v1.44 — 24 września 2026
 
 **Poprawianie starego tygodnia psuło jego dane — po cichu.** „Wczytaj do
