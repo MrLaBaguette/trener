@@ -652,7 +652,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.43";
+const WERSJA_APKI = "1.44";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1884,6 +1884,31 @@ export default function Mockup() {
      bo zapiszTydzien dopasowuje po dacie. */
   function wczytajTydzien(e) {
     setDataWpisu(e.date);
+    /* Początek okresu i panele dzienne muszą przyjść z wczytywanego tygodnia.
+       Wcześniej zostawały po tym, co było w formularzu — i zapis poprawki
+       starego tygodnia dostawał cudzy początek okresu (potrafił wypaść PO
+       dacie wpisu, co ścinało okres do trzech dni), a jego dni nadpisywały
+       się ważeniami z zupełnie innego tygodnia. Po cichu, bo nic nie
+       ostrzegało. */
+    /* Wpis uszkodzony tym błędem ma `od` późniejsze niż własna data, a jego
+       `dni` jest wtedy ścięte do trzech — obu nie wolno ufać. Takiemu
+       wpisowi dajemy zwykły tydzień, żeby edycja go naprawiła, a nie
+       przepisała błąd dalej. Długość liczymy z dat, tak samo jak formularz. */
+    const odOk = e.od && e.od <= e.date;
+    const dlugosc = odOk ? null : (e.od ? 7 : (e.dni || 7));
+    const od = odOk ? e.od : isoLokalne(new Date(d(e.date) - (dlugosc - 1) * 864e5));
+    const dni = Math.max(3, Math.min(21, Math.round((d(e.date) - d(od)) / 864e5) + 1));
+    setDataOd(od);
+    const zDzienne = (k) => Array.from({ length: dni }, (_, i) => {
+      const x = DZIENNE[isoLokalne(new Date(d(od) + i * 864e5))];
+      const v = x && x[k];
+      return v == null ? "" : (k === "waga" ? num(v, 1) : String(v));
+    });
+    setDniWaga(zDzienne("waga"));
+    setDniKcal(zDzienne("kcal"));
+    /* Otwarty podgląd importu CSV należy do tygodnia, nad którym się
+       pracowało — zatwierdzony tutaj trafiłby do wczytanego. */
+    setImp(null); setImpW(null); setImpBlad(null);
     setWaga(num(e.weight)); setPas(e.waist == null ? "" : String(e.waist));
     setKcal(e.kcal ? String(e.kcal) : "");
     setMakroB(e.bialko == null ? "" : String(e.bialko));
@@ -1894,6 +1919,17 @@ export default function Mockup() {
     setNotatka(e.note || ""); setPoza(!!e.poza);
     setKom(COMMENTS[e.date] || ""); setSkopiowane(false);
     setStage("form"); setTab("wpis");
+  }
+
+  /* „Jak w zeszłym tygodniu" przepisuje tylko to, co się zwykle powtarza:
+     sen, liczbę FBW, progres siły i aktywności. Waga, pas, kalorie, makro,
+     cheaty i notatka są pomiarem tego tygodnia — skopiowane udawałyby dane.
+     Przycisk od makiety stał bez obsługi i nic nie robił. */
+  function jakPoprzednio(p) {
+    if (!p) return;
+    setSen(p.sleep); setFbw(p.fbw);
+    setSila(Math.max(0, p.sila - 1));
+    setAkty(p.acts || []);
   }
 
   /* ── Kuchnia ────────────────────────────────────────────
@@ -2996,10 +3032,22 @@ ZASADY:
 
       {tab === "wpis" && (
         <section className="panel form">
-          <div className="prefill">
-            <span>Ostatni wpis: 2026-10-25 · 94,0 kg</span>
-            <button className="ghost">Jak w zeszłym tygodniu</button>
-          </div>
+          {/* Ta linia była wpisana na sztywno z makiety — pokazywała
+              „2026-10-25 · 94,0 kg" niezależnie od danych, czyli datę
+              z przyszłości. Teraz to wpis bezpośrednio przed tym, który
+              się wypełnia; przy poprawianiu starego tygodnia — ten przed nim. */}
+          {(() => {
+            const przed = ENTRIES.filter((e) => e.date < dataWpisu);
+            const p = przed.length ? przed[przed.length - 1] : null;
+            if (!p) return null;
+            return (
+              <div className="prefill">
+                <span>Poprzedni wpis: {dzienMiesiac(p.date)} · {num(p.weight)} kg</span>
+                <button className="ghost" title="Przepisz sen, FBW, progres siły i aktywności"
+                        onClick={() => jakPoprzednio(p)}>Jak w zeszłym tygodniu</button>
+              </div>
+            );
+          })()}
           <div className="row top">
             <label>Data
               <input type="date" value={dataWpisu}

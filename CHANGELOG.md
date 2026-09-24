@@ -10,6 +10,32 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.44 — 24 września 2026
+
+**Poprawianie starego tygodnia psuło jego dane — po cichu.** „Wczytaj do
+formularza" przywracało wagę, sen, notatkę i resztę, ale nie początek okresu
+ani panele dzienne. Zapis poprawki brał więc oba z tego, co akurat było
+w formularzu. Sprawdzone na v1.43: po wczytaniu tygodnia z 06.09 w trakcie
+wypełniania bieżącego wpis dostał początek okresu **21.09 — po własnej dacie** —
+długość ściętą do trzech dni, a ważenia z 04–06.09 zostały nadpisane
+ważeniami z bieżącego tygodnia. Z tych pól raport dla trenera bierze długość
+ocenianego okresu, więc trafiał tam błąd.
+
+Teraz wczytanie przywraca okres i dzienne ważenia oraz zamyka otwarty podgląd
+importu CSV, żeby nie trafił do niewłaściwego tygodnia. Wpisy już uszkodzone
+(początek okresu po dacie wpisu) dostają przy edycji zwykły tydzień — jedna
+poprawka je naprawia, zamiast powielać błąd.
+
+**„Ostatni wpis" był wpisany na sztywno.** Linia nad formularzem od makiety
+pokazywała „2026-10-25 · 94,0 kg" niezależnie od danych, czyli datę
+z przyszłości. Teraz to prawdziwy poprzedni wpis — przy poprawianiu starego
+tygodnia ten przed nim — a przy pustym rejestrze linia znika.
+
+**„Jak w zeszłym tygodniu" zaczęło działać.** Przycisk nie miał obsługi
+kliknięcia. Przepisuje sen, liczbę FBW, progres siły i aktywności — to, co się
+zwykle powtarza. Wagi, pasa, kalorii, makro i notatki nie rusza, bo to pomiar
+bieżącego tygodnia.
+
 ## v1.43 — 20 września 2026
 
 **Kafel „Wykonanie" pokazuje najświeższą zważoną wartość.** Do tej pory był
