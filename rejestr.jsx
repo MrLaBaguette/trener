@@ -168,6 +168,11 @@ REGUŁY, KTÓRE MUSISZ RESPEKTOWAĆ
 - Kolejność ustępstw przy obsunięciu: najpierw termin, potem tempo,
   a NIGDY białko i sen.
 - Deficyt robimy jedzeniem i krokami, nie dokładaniem treningu.
+- Okres oznaczony w raporcie jako nietypowy (wyjazd, święta, choroba)
+  komentujesz jako wyjątek. Nie oceniasz po nim tempa ani postępu i nie
+  proponujesz na jego podstawie zmian planu. Skok wagi w takim tygodniu to
+  najczęściej woda i inne jedzenie, nie tkanka. Postęp oceniasz po tempie
+  z tygodni zwykłych, które raport podaje w bilansie.
 - Pojedynczy odczyt wagi nic nie znaczy — ale „średnia wagi z tego okresu"
   w raporcie JEST średnią i traktujesz ją poważnie. Nie odrzucaj jej jako
   pomiaru z jednego dnia. Trend trzytygodniowy z założenia reaguje
@@ -652,7 +657,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.45";
+const WERSJA_APKI = "1.46";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -2727,15 +2732,28 @@ ZASADY:
      deficyt o połowę. */
   const balance = useMemo(() => {
     const czynne = series.filter((e) => !e.poza);
-    const win = czynne.slice(-4);
+    /* Trend liczony od nowa po samych tygodniach zwykłych. `series.trend`
+       uśrednia wszystkie wpisy, więc waga z tygodnia wyłączonego przeciekała
+       do trendu dwóch kolejnych i dalej wpływała na utrzymanie — przycisk
+       wyłączał kalorie tego tygodnia, ale nie jego wagę. */
+    const czyste = czynne.map((e, i) => {
+      const okno = czynne.slice(Math.max(0, i - 2), i + 1);
+      return { ...e, trend: okno.reduce((s, x) => s + x.weight, 0) / okno.length };
+    });
+    const win = czyste.slice(-4);
+    const pominiete = win.length
+      ? series.filter((e) => e.poza && e.date >= win[0].date).map((e) => e.date)
+      : series.filter((e) => e.poza).map((e) => e.date);
     if (win.length < 2)
-      return { realDeficit: 0, intake: 0, maintenance: 0, vsPlan: 0, cheats: 0, n: win.length };
+      return { realDeficit: 0, intake: 0, maintenance: 0, vsPlan: 0, cheats: 0, n: win.length,
+        kgPerWeek: 0, tygodnie: win, pominiete };
     const weeks = (d(win[win.length - 1].date) - d(win[0].date)) / 6048e5;
     const kgPerWeek = (win[win.length - 1].trend - win[0].trend) / weeks;
     const realDeficit = -(kgPerWeek * KCAL_PER_KG) / 7;
     const intake = win.reduce((s, e) => s + e.kcal, 0) / win.length;
     return { realDeficit, intake, maintenance: intake + realDeficit, vsPlan: intake - PLAN_KCAL,
-      cheats: win.reduce((s, e) => s + e.cheats, 0), n: win.length };
+      cheats: win.reduce((s, e) => s + e.cheats, 0), n: win.length,
+      kgPerWeek, tygodnie: win, pominiete };
   }, [series, ustawienia]);
 
   const agenda = useMemo(() => {
@@ -2782,6 +2800,18 @@ ZASADY:
     L.push(`Tydzień projektu: ${tyg}  ·  ${phaseAt(latest.date).label}`);
     L.push(`Okres oceniany: ${dniOst} dni${latest.od ? ` (${latest.od} – ${latest.date})` : ""}` +
       (dniOst !== 7 ? "  ← to NIE jest zwykły tydzień, uwzględnij to w ocenie" : ""));
+    /* Flaga „tydzień nietypowy" zmieniała dotąd tylko cztery liczby w bilansie.
+       Wszystko nad bilansem — średnia, odchylenia, tempo — szło do trenera
+       tak samo jak w zwykłym tygodniu, bez słowa o wyjeździe. Trener widział
+       skok wagi i nie wiedział, że to wyjątek. */
+    if (latest.poza) {
+      L.push("");
+      L.push("UWAGA — TEN OKRES JEST OZNACZONY JAKO NIETYPOWY (wyjazd, święta albo choroba).");
+      L.push("  Waga, odchylenia i tempo poniżej są policzone z jego udziałem, ale NIE");
+      L.push("  odzwierciedlają bilansu energetycznego. Okres jest wyłączony z wyliczania");
+      L.push("  utrzymania. Nie oceniaj po nim postępu i nie proponuj na jego podstawie");
+      L.push("  zmian planu — punktem odniesienia jest tempo z tygodni zwykłych w bilansie.");
+    }
     L.push("");
     /* Pole `weight` to średnia z okresu wpisana w formularzu, a nie pojedyncze
        ważenie — podpisywaliśmy je „ostatni pomiar surowy" i model, słusznie
@@ -2833,7 +2863,13 @@ ZASADY:
     L.push(`Aktywności poza FBW (liczba tygodni, w których wystąpiły, NIE liczba sesji): ${akt || "brak zaznaczonych"}`);
     L.push("");
     if (balance.n >= 2) {
-      L.push(`BILANS ENERGETYCZNY (${balance.n} tyg.)`);
+      L.push(`BILANS ENERGETYCZNY (${balance.n} tyg. zwykłych)`);
+      if (balance.pominiete.length) {
+        L.push(`  Pominięte jako nietypowe: ${balance.pominiete.join(", ")}`);
+        /* Ten sam znak co w linii „Tempo w przeliczeniu na tydzień" wyżej:
+           spadek wagi jest liczbą ujemną. */
+        L.push(`  Tempo z tygodni zwykłych: ${num(balance.kgPerWeek)} kg/tydz. (cel ${num(tempoWFazie(latest.date, ustawienia))})`);
+      }
       L.push(`  Zjedzone: ${Math.round(balance.intake)} kcal/dzień`);
       L.push(`  Plan: ${ustawienia.planKcal} kcal/dzień (${balance.vsPlan >= 0 ? "+" : "−"}${Math.abs(Math.round(balance.vsPlan))})`);
       L.push(`  Utrzymanie wyliczone z wagi: ${Math.round(balance.maintenance)} kcal/dzień`);
@@ -2842,7 +2878,10 @@ ZASADY:
       /* Zjedzone makro wchodzi tylko wtedy, gdy jest zapisane — wpisy
          sprzed v1.39 mają same kalorie i zmyślanie tu zer wprowadzałoby
          trenera w błąd. Średnia z tych tygodni, w których coś podano. */
-      const zMakro = series.slice(-balance.n).filter((e) => e.bialko != null || e.tluszcz != null || e.wegle != null);
+      /* Te same tygodnie co kalorie wyżej. Wcześniej brało ostatnie N wpisów
+         z tygodniem nietypowym włącznie, więc kalorie i makro w jednym bilansie
+         pochodziły z różnych tygodni. */
+      const zMakro = balance.tygodnie.filter((e) => e.bialko != null || e.tluszcz != null || e.wegle != null);
       if (zMakro.length) {
         const srM = (k) => {
           const v = zMakro.filter((e) => e[k] != null);

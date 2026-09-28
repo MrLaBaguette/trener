@@ -10,6 +10,32 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.46 — 28 września 2026
+
+**Tydzień nietypowy działa w raporcie w całości, a nie w jednym miejscu.**
+Przycisk „Wyłącz ten tydzień z wyliczania kalorii utrzymania" zmieniał tylko
+cztery liczby w bilansie. Reszta raportu — średnia, odchylenia, tempo — szła do
+trenera identycznie jak w zwykłym tygodniu, bez słowa o wyjeździe. Trener
+widział skok wagi po górach i nie miał skąd wiedzieć, że to wyjątek.
+
+Teraz, gdy oznaczony jest tydzień, o który pytasz, raport zaczyna się od
+wyraźnej uwagi, że okres jest nietypowy i nie wolno po nim oceniać postępu.
+Bilans wymienia pominięte tygodnie i podaje osobno **tempo z tygodni
+zwykłych**, żeby trener miał czym zastąpić tempo zafałszowane wyjazdem.
+Prompt dostał regułę, jak takie okresy komentować.
+
+**Wyłączony tydzień przestał wpływać na utrzymanie przez wagę.** Bilans
+pomijał jego kalorie, ale liczył utrzymanie z trendu trzytygodniowego
+uśredniającego wszystkie wpisy — więc waga z wyjazdu przeciekała do trendu
+dwóch kolejnych tygodni. Trend do bilansu liczy się teraz po samych tygodniach
+zwykłych. Sprawdzone: tydzień oznaczony jako nietypowy daje dokładnie to samo
+utrzymanie, co ten sam tydzień usunięty z rejestru. W przykładzie z wyjazdem
+w środku okna różnica wynosiła wcześniej około 80 kcal dziennie.
+
+**Makro w bilansie pochodzi z tych samych tygodni co kalorie.** Brało ostatnie
+N wpisów z tygodniem nietypowym włącznie, więc kalorie i makro w jednym
+bilansie liczyły się z różnych tygodni.
+
 ## v1.45 — 24 września 2026
 
 **Ręczne formularze spirometrii i krwi zaczęły działać.** Były atrapami od
