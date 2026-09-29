@@ -10,6 +10,23 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.47 — 29 września 2026
+
+**Przycisk „Wyłącz ten tydzień" wreszcie wygląda i działa jak checkbox.**
+Dwie usterki, obie w samym przycisku — v1.46 naprawiła to, co raport robi
+z flagą, ale flagę w testach ustawiała bezpośrednio w danych, więc przycisku
+nikt nie kliknął.
+
+Po pierwsze nie było stylu dla stanu zaznaczonego. Kliknięcie przełączało
+flagę, ale kwadrat zostawał pusty — wyglądało, jakby nic się nie stało. Teraz
+zaznaczony kwadrat ma wypełnienie i ptaszka, w obu motywach.
+
+Po drugie formularz zostaje na ekranie po zapisie tygodnia, więc przycisk bywa
+klikany już po „Zapisz tydzień". Zmieniał wtedy tylko formularz, a raport
+czyta zapisany wpis — tydzień szedł do trenera jako zwykły. Teraz, jeśli wpis
+na tę datę już istnieje, zaznaczenie i odznaczenie trafiają do niego od razu,
+bez ponownego zapisu.
+
 ## v1.46 — 28 września 2026
 
 **Tydzień nietypowy działa w raporcie w całości, a nie w jednym miejscu.**

@@ -657,7 +657,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.46";
+const WERSJA_APKI = "1.47";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1964,6 +1964,17 @@ export default function Mockup() {
      sen, liczbę FBW, progres siły i aktywności. Waga, pas, kalorie, makro,
      cheaty i notatka są pomiarem tego tygodnia — skopiowane udawałyby dane.
      Przycisk od makiety stał bez obsługi i nic nie robił. */
+  /* Formularz zostaje na ekranie po zapisie, więc przycisk bywa klikany już
+     po „Zapisz tydzień". Wcześniej zmieniał wtedy tylko formularz, a raport
+     czyta zapisany wpis — tydzień szedł do trenera jako zwykły. Jeśli wpis
+     na tę datę istnieje, flaga trafia do niego od razu. */
+  function przelaczPoza() {
+    const nowa = !poza;
+    setPoza(nowa);
+    if (ENTRIES.some((e) => e.date === dataWpisu))
+      setEntries((prev) => prev.map((e) => (e.date === dataWpisu ? { ...e, poza: nowa } : e)));
+  }
+
   function jakPoprzednio(p) {
     if (!p) return;
     setSen(p.sleep); setFbw(p.fbw);
@@ -3475,7 +3486,8 @@ ZASADY:
           <div className="frow">
             <span className="fkey">Bilans <em>tygodnie nietypowe</em></span>
             <div className="fval">
-              <button className={poza ? "wyklucz on" : "wyklucz"} onClick={() => setPoza(!poza)}>
+              <button className={poza ? "wyklucz on" : "wyklucz"} onClick={przelaczPoza}
+                      role="checkbox" aria-checked={poza}>
                 <span className="box" />
                 Wyłącz ten tydzień z wyliczania kalorii utrzymania
               </button>
@@ -5782,7 +5794,13 @@ const CSS = `
   cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink-2);
   text-align:left}
 .wyklucz .box{width:16px;height:16px;border:1px solid var(--rule);border-radius:4px;
-  flex-shrink:0;display:inline-block}
+  flex-shrink:0;display:inline-block;position:relative}
+/* Stanu zaznaczonego nie było wcale — kliknięcie przełączało flagę, ale
+   kwadrat zostawał pusty i wyglądało to, jakby przycisk nie działał. */
+.wyklucz.on{color:var(--ink)}
+.wyklucz.on .box{background:var(--ink);border-color:var(--ink)}
+.wyklucz.on .box::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:9px;
+  border:solid var(--paper);border-width:0 2px 2px 0;transform:rotate(45deg)}
 .wyklucz:hover .box{border-color:var(--ink)}
 .hintline{margin:7px 0 0;font-size:11px;color:var(--ink-2);opacity:.8;font-style:italic}
 .imp-lbl{position:relative;overflow:hidden;display:inline-block}
