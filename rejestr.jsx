@@ -110,21 +110,59 @@ const KONTEKST_TRENERA = `
 Jesteś Ronnie — trener personalny i specjalista przygotowania motorycznego.
 Odpowiadasz na cotygodniowy raport. Piszesz po polsku.
 
-TON. Rzeczowy i bezpośredni, z charakterem Ronniego Colemana na wierzchu.
-Merytoryka nigdy nie ustępuje miejsca hałasowi. Maksymalnie jeden okrzyk na
-odpowiedź, na początku albo na końcu, nie w środku wywodu. Nie w każdej
-odpowiedzi — mniej więcej co trzecia.
+TON. Rzeczowy i bezpośredni w warstwie merytorycznej, ale z charakterem
+Ronniego Colemana na wierzchu. Merytoryka nigdy nie ustępuje miejsca
+hałasowi — okrzyk jest przyprawą, nie daniem.
 
-Repertuar: "Yeah buddy!", "Lightweight baby!", "Ain't nothin' but a peanut",
-"Nothin' to it but to do it". Warianty polskie, rzadziej: "Tak kolego!",
-"Lekka Waga Dziecko", "To nic tylko fistaszek", "Pozostaje to zrobić".
-Wersji polskiej i angielskiej nie łączysz w jednej wiadomości.
-"Lightweight baby" wyłącznie przy celowo lekkim ciężarze.
-"Nothin' to it but to do it" gdy się waha albo szuka wymówki.
+OKRZYKI
+Oryginały: "Yeah buddy!", "Lightweight baby!", "Ain't nothin' but a peanut!",
+"Nothin' to it but to do it", "Whoooo!".
+Polskie warianty — dosłowne tłumaczenia, których cały urok polega na tym, jak
+absurdalnie brzmią po polsku: "Lekka Waga Dziecko", "Tak kolego!", "To nic
+tylko fistaszek", "Pozostaje to zrobić". To nie są zamienniki, tylko
+poszerzenie repertuaru. Wersji polskiej i angielskiej nie łączysz w jednej
+wiadomości — zwłaszcza tej samej kwestii w obu językach, bo wtedy dowcip
+tłumaczy się sam i przestaje działać. Polską wersję podajesz zawsze na zimno,
+bez komentarza.
 
-CISZA OBOWIĄZKOWA — zero okrzyków, gdy w raporcie jest: ból pleców lub
-kontuzja, astma i duszności, złe wyniki skanu, spadek masy beztłuszczowej,
-przemęczenie, zarwane noce albo tydzień, w którym mu nie szło.
+Kiedy który:
+- "Lightweight baby!" / "Lekka Waga Dziecko" — wyłącznie gdy zalecasz celowo
+  lekki ciężar: goblet squat w tygodniu 1, powrót na 80%, sesja po zarwanej
+  nocy. Cały dowcip polega na tym, że mówi to trener, który każe schodzić
+  z obciążenia.
+- "Ain't nothin' but a peanut!" / "To nic tylko fistaszek" — gdy coś poszło
+  łatwo albo przy rekordzie.
+- "Nothin' to it but to do it" / "Pozostaje to zrobić" — gdy się waha,
+  przeciąga decyzję albo szuka wymówki.
+- "Yeah buddy!" / "Tak kolego!" — uniwersalne, wszędzie tam, gdzie coś poszło
+  dobrze.
+Maksymalnie jeden okrzyk na odpowiedź, na początku albo na końcu, nigdy
+w środku wywodu.
+
+WOOF. Zamiast powitania otwierasz albo zamykasz odpowiedź słowem "Woof!" —
+nawiązanie do tego, jak zwracamy się do siebie z kumplem: "big dog". Nigdy
+dwa razy w tej samej odpowiedzi. "Woof!" nie liczy się do limitu jednego
+okrzyku.
+
+CZĘSTOTLIWOŚĆ USTALA APLIKACJA. Każdy raport dostajesz bez pamięci
+poprzednich, więc sam nie wiesz, który to raz z kolei — o tym, czy w tej
+odpowiedzi ma być "Woof!" i okrzyk, decyduje aplikacja w sekcji CHARAKTER
+TEJ ODPOWIEDZI na końcu raportu. Trzymaj się jej: jeśli przydziela "Woof!"
+albo okrzyk, a cisza obowiązkowa nie obowiązuje — użyj. Nie dokładaj nic
+ponad przydział. Okrzyk wybierz pasujący do treści; jeśli w tygodniu
+cokolwiek poszło dobrze, "Yeah buddy!" pasuje zawsze.
+
+CISZA OBOWIĄZKOWA — zero okrzyków i zero "Woof!", gdy raport dotyczy: bólu
+pleców lub kontuzji, astmy i duszności, złych wyników skanu, spadku masy
+beztłuszczowej, przemęczenia, zarwanych nocy w tym tygodniu albo tygodnia,
+w którym mu nie szło. W takich chwilach Ronnie jest po prostu trenerem, który
+wie, co robi.
+Krótki, przerywany sen przy małym dziecku to stałe tło całego projektu,
+opisane niżej w kontekście zawodnika. Samo to tło NIE uruchamia ciszy —
+uruchamia ją tydzień gorszy niż zwykle. Część warunków aplikacja sprawdza
+z liczb i podaje w sekcji CHARAKTER TEJ ODPOWIEDZI; notatkę zawodnika
+czytasz ty i jeśli jest w niej ból, kontuzja, duszność, zły skan albo
+zarwana noc — milczysz, nawet gdy aplikacja przydzieliła okrzyk.
 
 Nie podszywasz się pod prawdziwego Ronniego Colemana: nie wymyślasz jego
 wypowiedzi, nie opowiadasz jego historii, nie mówisz w jego imieniu.
@@ -460,6 +498,48 @@ function ostatniaWaga({ entries, dzienne, skany, wymiary, testy, cardio }) {
   return { ...w, opis: (ZRODLA_WAGI.find((z) => z.klucz === w.klucz) || {}).opis };
 }
 
+/* ── Charakter odpowiedzi trenera ───────────────────────────
+   INSTRUKCJE_PROJEKTU.md każe dawać "Woof!" co drugą–trzecią rozmowę,
+   okrzyk mniej więcej co trzecią odpowiedź, a polską wersję co czwarty raz.
+   Model tego nie policzy: każdy raport to osobne wywołanie bez pamięci,
+   więc proszony o „co trzecią" nie wie, którą jest ta — i prawie zawsze
+   wybierał ciszę. Liczy więc kod, po numerze tygodnia projektu: ten sam
+   tydzień zapytany drugi raz dostaje ten sam charakter.
+
+   Cisza z liczb: ocena snu 1–2/5, regres siły albo sygnał o wadze
+   „ostrzeżenie". Stałe tło (sen 5–6 h z dzieckiem) ciszy nie uruchamia —
+   wcześniej uruchamiało ją w każdym raporcie, bo opis zawodnika wspomina
+   o przerywanym śnie na stałe. Notatkę z bólem czy złym skanem czyta model. */
+function charakterOdpowiedzi({ tydzien, sen, sila, sygnaly }) {
+  const powody = [];
+  if (sen != null && sen <= 2) powody.push(`sen ${sen}/5 w tym tygodniu`);
+  if (sila != null && sila <= 2) powody.push(`siła: ${SILA[sila - 1]}`);
+  (sygnaly || []).filter((f) => f.waga === "ostrzezenie").forEach((f) => powody.push(f.tekst));
+  const t = Math.max(1, Math.round(tydzien || 1));
+  const okrzyk = t % 3 === 0;
+  return {
+    cisza: powody,
+    woof: t % 2 === 1 ? (t % 4 === 1 ? "na początku" : "na końcu") : null,
+    okrzyk: okrzyk ? (t % 12 === 0 ? "polski" : "angielski") : null,
+  };
+}
+
+function opisCharakteru(c) {
+  const L = ["", "CHARAKTER TEJ ODPOWIEDZI (wylicza aplikacja, bo nie pamiętasz poprzednich raportów):"];
+  if (c.cisza.length) {
+    L.push(`- CISZA OBOWIĄZKOWA: TAK — ${c.cisza.join("; ")}.`);
+    L.push(`- Zero okrzyków i zero „Woof!" w tej odpowiedzi.`);
+    return L.join("\n");
+  }
+  L.push(`- „Woof!": ${c.woof ? "TAK, " + c.woof + " odpowiedzi" : "nie w tej odpowiedzi"}`);
+  L.push(`- Okrzyk: ${c.okrzyk
+    ? "TAK, jeden, w wersji " + (c.okrzyk === "polski" ? "polskiej" : "angielskiej")
+    : "nie w tej odpowiedzi"}`);
+  L.push("- Cisza z liczb: nie wykryta. Sprawdź jeszcze notatkę zawodnika — ból, kontuzja,");
+  L.push("  duszność, zły skan albo zarwana noc oznaczają ciszę mimo przydziału powyżej.");
+  return L.join("\n");
+}
+
 /* Progi wejścia do jadłospisu z ZYWIENIE.md. Obiad i kolacja mają ten sam
    próg, podwieczorek niższy — ciężar białkowy idzie na posiłek główny. */
 const PROGI = {
@@ -657,7 +737,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.47";
+const WERSJA_APKI = "1.48";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -2960,12 +3040,16 @@ ZASADY:
         ? "\n\nWYKRYTE SYGNAŁY (policzone przez aplikację, nie szacuj ich sam):\n" +
           sygnaly.map((f) => `- [${f.waga}] ${f.tekst}`).join("\n")
         : "\n\nWYKRYTE SYGNAŁY: brak.";
+      const charakter = opisCharakteru(charakterOdpowiedzi({
+        tydzien: Math.round((d(latest.date) - d(ustawienia.kamienie[0].date)) / 6048e5) + 1,
+        sen: latest.sleep, sila: latest.sila, sygnaly,
+      }));
       const txt = await wolajModel({
         klucz: ustawienia.klucz,
         model: MODEL_TRENERA,
         maxTokens: TOKENY_TRENERA,
         system: KONTEKST_TRENERA,
-        tresc: raport + flagi,
+        tresc: raport + flagi + "\n" + charakter,
       });
       setKom(txt);
       setSkopiowane(true);

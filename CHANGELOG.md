@@ -10,6 +10,30 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.48 — 5 października 2026
+
+**Ronnie mówi tak, jak ustalono w instrukcjach projektu.** Prompt w aplikacji
+był okrojoną wersją części o Ronniem z `INSTRUKCJE_PROJEKTU.md`. Brakowało
+w nim „Woof!" w ogóle, „Whoooo!", zasad, kiedy „Yeah buddy!" i „Ain't nothin'
+but a peanut", oraz charakteru polskich wariantów podawanych na zimno. Sekcja
+tonu jest teraz przeniesiona wiernie.
+
+**Częstotliwość okrzyków liczy kod.** Instrukcje mówią „Woof!" co drugą–trzecią
+rozmowę i okrzyk mniej więcej co trzecią odpowiedź. Model tego nie policzy —
+każdy raport to osobne wywołanie bez pamięci, więc proszony o „co trzecią"
+nie wiedział, którą jest ta, i prawie zawsze wybierał ciszę. Teraz aplikacja
+przydziela charakter po numerze tygodnia projektu: „Woof!" w co drugim
+tygodniu, na przemian na początku i na końcu, okrzyk co trzeci tydzień, co
+czwarty z nich po polsku. Ten sam tydzień zapytany ponownie dostaje ten sam
+charakter.
+
+**Cisza obowiązkowa przestała działać na stałe.** Włączała się przy „zarwanych
+nocach", a opis zawodnika na stałe mówi o śnie 5–6 h z dzieckiem — więc każdy
+raport ją uruchamiał. Teraz ciszę z liczb wyznacza tydzień gorszy niż zwykle:
+ocena snu 1–2/5, regres siły albo sygnał ostrzegawczy. Notatkę z bólem,
+kontuzją, dusznością albo złym skanem nadal czyta model i wtedy milczy mimo
+przydziału.
+
 ## v1.47 — 29 września 2026
 
 **Przycisk „Wyłącz ten tydzień" wreszcie wygląda i działa jak checkbox.**
