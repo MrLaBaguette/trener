@@ -737,7 +737,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.48";
+const WERSJA_APKI = "1.49";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1449,6 +1449,11 @@ function ostatniaNiedziela() {
 const DNI = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
 
 const phaseAt = (s) => PHASES.find((p) => d(s) >= d(p.from) && d(s) < d(p.to)) || PHASES[0];
+
+/* Kto ma w systemie „ogranicz ruch", dostaje przewinięcie od razu, bez animacji. */
+function plynnie() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
 
 export default function Mockup() {
   /* ── Stan trwały ────────────────────────────────────────
@@ -2472,7 +2477,13 @@ export default function Mockup() {
   /* ── Wydarzenia ─────────────────────────────────────────
      Odhaczenie zdejmuje pozycję z panelu „Nadchodzące". Bez tego zaległy
      obowiązek zostaje tam na zawsze i panel przestaje cokolwiek znaczyć. */
-  function otworzEv(w) { setEv({ ...w }); }
+  // Edytor pojawia się pod siatką miesiąca — na telefonie poza ekranem,
+  // więc bez przewinięcia stuknięcie w dzień wyglądało, jakby nic nie robiło.
+  const evRef = useRef(null);
+  function otworzEv(w) {
+    setEv({ ...w });
+    setTimeout(() => evRef.current && evRef.current.scrollIntoView({ block: "nearest", behavior: plynnie() }), 0);
+  }
 
   function zapiszEv() {
     if (!ev.n.trim()) { window.alert("Wydarzenie bez nazwy nic nie powie."); return; }
@@ -3066,8 +3077,21 @@ ZASADY:
     const o = {}; series.forEach((e) => { o[e.date] = e; }); return o;
   }, [series]);
 
+  /* Wykres rysuje się w jednostkach równych pikselom ekranu. Przy stałym
+     viewBoxie 720 telefon zmniejszał go do ~320 px i opisy osi miały 5 px. */
+  const [szerWykresu, setSzerWykresu] = useState(720);
+  const wykresRef = useRef(null);
+  useEffect(() => {
+    const el = wykresRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => setSzerWykresu(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [tab]);
+
   const chart = useMemo(() => {
-    const W = 720, H = 250, ML = 38, MR = 12, MT = 14, MB = 26;
+    const W = Math.max(300, Math.min(720, szerWykresu || 720));
+    const H = Math.round(Math.max(210, Math.min(250, W * 0.6))), ML = 38, MR = 12, MT = 14, MB = 26;
     const x0 = d("2026-08-01"), x1 = d("2027-07-25");
     const yMin = 80, yMax = 97.5;
     const px = (t) => ML + ((t - x0) / (x1 - x0)) * (W - ML - MR);
@@ -3078,7 +3102,7 @@ ZASADY:
     return { W, H, ML, MR, MT, MB, px, py, planPts,
       actual: series.map((e) => ({ x: px(d(e.date)), y: py(e.weight) })),
       trend: series.map((e) => `${px(d(e.date))},${py(e.trend)}`) };
-  }, [series]);
+  }, [series, szerWykresu]);
 
   /* Przekrój krwi po parametrach — potrzebny i przełącznikowi widoku,
      i wykresom. Liczony raz, bo obie rzeczy czytają to samo. */
@@ -3187,7 +3211,7 @@ ZASADY:
       )}
 
       <div className="mockbar">
-        <span>
+        <span role="status" aria-live="polite">
           {zapisano ? `zapisano ${godzinaZ(zapisano)}` : "brak zapisu"}
           {ustawienia.token && ustawienia.repo &&
             (sync.stan === "pracuje" ? " · " + etykietaSync
@@ -3256,7 +3280,11 @@ ZASADY:
                 ? "Waga idzie zgodnie z planem."
                 : variance < 0
                 ? `Jesteś ${num(-variance)} kg przed planem.`
-                : `Jesteś ${num(variance)} kg za planem. W bloku ciężkim to normalne — plan zakłada tam utrzymanie wagi.`}
+                // Dopisek o utrzymaniu wagi tylko tam, gdzie faza naprawdę ma tempo 0 —
+                // wcześniej wyświetlał się przy każdym opóźnieniu, także w deficycie.
+                : tempoWFazie(latest.date, ustawienia) === 0
+                ? `Jesteś ${num(variance)} kg za planem. W tej fazie plan zakłada utrzymanie wagi.`
+                : `Jesteś ${num(variance)} kg za planem.`}
             </p>
           </div>
         </div>
@@ -3522,7 +3550,7 @@ ZASADY:
           </div>
 
           {impBlad && (
-            <div className="impbox err">
+            <div className="impbox err" role="alert">
               <b>Nie udało się wczytać.</b> {impBlad}
             </div>
           )}
@@ -3641,7 +3669,7 @@ ZASADY:
                       {podglad ? "Ukryj raport" : "Podgląd raportu"}
                     </button>
                   </div>
-                  {bladTrenera && <div className="impbox err"><b>Nie wyszło:</b> {bladTrenera}</div>}
+                  {bladTrenera && <div className="impbox err" role="alert"><b>Nie wyszło:</b> {bladTrenera}</div>}
                   <p className="note">Trudniejszy tydzień — kontuzja, coś nie gra, chcesz drążyć — kopiuj do czatu. Tam Ronnie ma komplet plików i dietetyka obok.</p>
                   {podglad && <pre className="report">{raport}</pre>}
                 </div>
@@ -3740,7 +3768,7 @@ ZASADY:
             </div>
 
             {impStan && impStan.blad && (
-              <div className="impbox err"><b>Nie wczytałem.</b> {impStan.blad}</div>
+              <div className="impbox err" role="alert"><b>Nie wczytałem.</b> {impStan.blad}</div>
             )}
 
             {impStan && impStan.dane && (
@@ -3840,7 +3868,7 @@ ZASADY:
                 : zgodne ? "wysyła po każdej zmianie" : "wstrzymany"}</b>.
               {" "}Wstrzymuje się, gdy w repozytorium pojawią się dane, których to urządzenie nie zna. Wraca po pobraniu zdalnych albo po świadomym wysłaniu stąd.
             </p>
-            {sync.blad && <div className="impbox err"><b>Synchronizacja:</b> {sync.blad}</div>}
+            {sync.blad && <div className="impbox err" role="alert"><b>Synchronizacja:</b> {sync.blad}</div>}
             {sync.stan === "gotowe" && !sync.blad &&
               <p className="note">Ostatnio: {chwilaZ(sync.kiedy)}</p>}
 
@@ -3921,7 +3949,7 @@ ZASADY:
             </table>
 
             <h4 className="ust-h">Fazy i tempo</h4>
-            <table className="tbl">
+            <table className="tbl fazy">
               <thead><tr><th>Faza</th><th>Od</th><th>Do</th><th>kg/tydz.</th></tr></thead>
               <tbody>
                 {ustawienia.fazy.map((f, i) => (
@@ -4109,7 +4137,7 @@ ZASADY:
             </div>
           </div>
 
-          {bladAI && <div className="impbox err"><b>Błąd.</b> {bladAI}</div>}
+          {bladAI && <div className="impbox err" role="alert"><b>Błąd.</b> {bladAI}</div>}
 
           {wynik && (() => {
             const p1 = Math.max(1, parseFloat(String(porcje).replace(",", ".")) || 1);
@@ -4229,8 +4257,9 @@ ZASADY:
       {/* ── STATYSTYKI ── */}
       {tab === "staty" && (
         <>
-          <section className="panel">
-            <svg viewBox={`0 0 ${chart.W} ${chart.H}`} className="chart">
+          <section className="panel" ref={wykresRef}>
+            <svg viewBox={`0 0 ${chart.W} ${chart.H}`} className="chart" role="img"
+                 aria-label="Waga: plan, trend i pomiary od sierpnia 2026 do lipca 2027">
               {PHASES.map((p, i) => (
                 <rect key={i} x={chart.px(d(p.from))} y={chart.MT}
                       width={chart.px(d(p.to)) - chart.px(d(p.from))}
@@ -4382,7 +4411,7 @@ ZASADY:
                 <label>Masa (kg)<input value={testForm.masa} inputMode="decimal"
                   placeholder={pusty ? "" : num(latest.weight)}
                   onChange={(e) => setTestForm({ ...testForm, masa: e.target.value })} /></label>
-                <label>Plank (s)<input value={testForm.plank} inputMode="numeric"
+                <label>Plank<input value={testForm.plank} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, plank: e.target.value })} /></label>
                 <label>Pull-ups<input value={testForm.pull} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, pull: e.target.value })} /></label>
@@ -4841,7 +4870,8 @@ ZASADY:
                 ? planAt(dz.iso) + variance : null;
               const waga = wpis ? wpis.weight : dz1 ? dz1.waga : null;
               return (
-                <div key={dz.iso} className={"kd" + (dz.obcy ? " obcy" : "") + (dz.niedziela ? " nd" : "")}>
+                <div key={dz.iso} className={"kd" + (dz.obcy ? " obcy" : "") + (dz.niedziela ? " nd" : "")}
+                     onClick={dz.obcy ? undefined : () => otworzEv({ d: dz.iso, t: "pomiar", n: "" })}>
                   <span className="kd-n">{dz.dt.getDate()}</span>
                   {waga != null && (
                     <span className={"kd-kg " + (wpis ? "wyk" : "dzien")}>{num(waga)}</span>
@@ -4852,11 +4882,11 @@ ZASADY:
                     <button key={w.id || i}
                             className={"kd-ev e-" + w.t + (w.zrobione ? " zrob" : "")}
                             title={`${w.n} — kliknij, aby edytować`}
-                            onClick={() => otworzEv(w)}>{w.n}</button>
+                            onClick={(e) => { e.stopPropagation(); otworzEv(w); }}>{w.n}</button>
                   ))}
                   {!dz.obcy && (
-                    <button className="kd-add" title="Dodaj wydarzenie"
-                            onClick={() => otworzEv({ d: dz.iso, t: "pomiar", n: "" })}>+</button>
+                    <button className="kd-add" title="Dodaj wydarzenie" aria-label={"Dodaj wydarzenie " + dz.iso}
+                            onClick={(e) => { e.stopPropagation(); otworzEv({ d: dz.iso, t: "pomiar", n: "" }); }}>+</button>
                   )}
                 </div>
               );
@@ -4864,7 +4894,7 @@ ZASADY:
           </div>
 
           {ev && (
-            <div className="evbox">
+            <div className="evbox" ref={evRef}>
               <div className="prow">
                 <label>Data<input type="date" value={ev.d}
                   onChange={(e) => setEv({ ...ev, d: e.target.value })} /></label>
@@ -4944,6 +4974,7 @@ ZASADY:
             <span><i className="e-wyjazd" />wyjazd</span>
           </div>
 
+          <p className="note">Stuknij dzień, żeby dodać wydarzenie; stuknij wydarzenie, żeby je edytować.</p>
           <p className="note">
             Liczba w niedzielę to waga zamykająca tydzień: złota, gdy wpis już jest,
             ciemna, gdy to prognoza. Prognoza trzyma kształt roadmapy przesunięty
@@ -5155,7 +5186,7 @@ ZASADY:
             </label>
             <span className="ready">{DANIA.filter((x) => !!x.ulubione).length} w ulubionych</span>
           </div>
-          {mdBlad && <div className="impbox err"><b>Plik odbiega od szablonu.</b> {mdBlad}</div>}
+          {mdBlad && <div className="impbox err" role="alert"><b>Plik odbiega od szablonu.</b> {mdBlad}</div>}
           <p className="note">Wgrywasz plik prosto z vaulta — apka czyta tytuł, tagi, porcje i tabelę makro z sekcji Macros. Poprawka zrobiona tutaj wraca do vaulta przyciskiem „Pobierz .md", więc nie zostaje uwięziona w telefonie.</p>
         </section>
       )}
@@ -5531,6 +5562,13 @@ const CSS = `
   --actual:#B8860B;--warn:#8C2F39;--good:#3F6B57;
   --band-0:#E4E9E7;--band-1:#E9EDEB;--band-2:#DFE6E3;
   --panel:#F6F8F7;--hair:#DDE4E1;--tint:#E9EDEB;--hover:#F2F5F4;--open:#F9FBFA;
+  /* Kolory tekstu osobno od kolorów linii. --plan i --actual są dobre na
+     wykresie, ale jako tekst na papierze miały 2,9–3,7:1 przy wymaganych 4,5:1.
+     Ciemniejsze odpowiedniki trzymają ≥4,5:1 na papierze, panelu i tincie. */
+  --plan-tx:#56706A;--actual-tx:#826008;--warn-tx:var(--warn);
+  /* Te nazwy były używane w kilkunastu regułach, ale nigdzie zdefiniowane —
+     działały przypadkiem, bo nieznany kolor dziedziczył albo znikał. */
+  --ink-1:var(--ink);--ink-3:var(--ink-2);--bg-0:var(--paper);--bg-1:var(--paper);--bad:var(--warn);
   --r:8px;--r-sm:5px;--r-lg:12px;
   background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:14px;
   line-height:1.45;padding:22px;max-width:800px;margin:0 auto;
@@ -5538,9 +5576,17 @@ const CSS = `
 .rej.dark{--paper:#12171A;--ink:#E7EDEA;--ink-2:#B4C2BD;--rule:#33403F;--plan:#9BB5AE;
   --actual:#D9A62B;--warn:#C4596B;--good:#5FA07C;
   --band-0:#171D20;--band-1:#141A1D;--band-2:#1B2225;
-  --panel:#171D20;--hair:#242E31;--tint:#1B2225;--hover:#1E2629;--open:#1B2225}
+  --panel:#171D20;--hair:#242E31;--tint:#1B2225;--hover:#1E2629;--open:#1B2225;
+  --plan-tx:var(--plan);--actual-tx:var(--actual);--warn-tx:#E08699}
 .rej *{box-sizing:border-box}
-.rej *,.rej *:focus,.rej *:active{outline:none!important;-webkit-tap-highlight-color:transparent}
+.rej *{-webkit-tap-highlight-color:transparent}
+/* Obrys fokusu był wyłączony globalnie, więc z klawiatury nie było widać,
+   gdzie się jest. Myszą i palcem nadal go nie ma — :focus-visible zapala go
+   tylko przy nawigacji klawiaturą. */
+.rej *:focus{outline:none}
+.rej button:focus-visible,.rej select:focus-visible,.rej a:focus-visible,.rej [tabindex]:focus-visible{
+  outline:2px solid var(--actual-tx);outline-offset:2px}
+.rej .tab:focus-visible{outline-offset:-3px}
 .rej button,.rej svg,.rej .ring,.rej .lbl,.rej .cap,.rej .fkey,.rej .eyebrow,
 .rej .rlab,.rej .rtxt,.rej .tyd-d span,.rej .legend,.rej .bar-meta{
   -webkit-user-select:none;user-select:none}
@@ -5558,7 +5604,7 @@ const CSS = `
 .rej.dark .exp-tog .tiny-note,.rej.dark .ag-foot{opacity:1;color:var(--ink-2)}
 .rej.dark .hintline,.rej.dark .note,.rej.dark .pdesc,
 .rej.dark .exp-txt em,.rej.dark .kuw{color:var(--ink-2);opacity:1}
-.rej.dark .kd.obcy{opacity:.42}
+.rej.dark .kd.obcy{opacity:.5}
 .rej.dark .jitem .jmeta{opacity:.9}
 .rej.dark .tyd-d input::placeholder,.rej.dark .daygrid input::placeholder{color:#5A6A66}
 .rej.dark .score.none,.rej.dark .stars.none{color:var(--ink-2)}
@@ -5570,7 +5616,7 @@ const CSS = `
 .rej.dark .chipm.on,.rej.dark .subtab.on,.rej.dark .tab.on{
   background:var(--hover);color:var(--ink);border-color:var(--ink);font-weight:600}
 .rej.dark .sc.on .m2{background:var(--ink)}
-.rej.dark .pip.on.low{background:rgba(196,89,107,.22);color:var(--warn);border-color:var(--warn)}
+.rej.dark .pip.on.low{background:rgba(196,89,107,.22);color:var(--warn-tx);border-color:var(--warn)}
 .rej.dark .mockbar{background:var(--panel);color:var(--ink);border:1px solid var(--rule)}
 .rej.dark .themebtn{border-color:var(--ink-2);color:var(--ink);opacity:1}
 .rej.dark .primary{background:var(--ink);color:#12171A;font-weight:600}
@@ -5582,18 +5628,18 @@ const CSS = `
 .rej.dark .e-faza{background:rgba(196,89,107,.16);color:#E08699}
 .rej.dark .e-wyjazd{background:rgba(180,194,189,.12);color:var(--ink-2)}
 .rej.dark .kallegend i{border-left-width:3px}
-.rej button:focus-visible,.rej input:focus-visible,.rej textarea:focus-visible{
+.rej input:focus-visible,.rej textarea:focus-visible{
   box-shadow:inset 0 0 0 2px var(--ink)}
 .rej svg,.rej svg *{border:0}
 .mockbar{border-radius:var(--r);background:var(--ink);color:var(--paper);font-family:'IBM Plex Mono',monospace;
-  font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;padding:6px 10px;margin-bottom:18px;
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;padding:6px 10px;margin-bottom:18px;
   display:flex;align-items:center;justify-content:space-between;gap:12px}
 .themebtn{border-radius:99px;background:none;border:1px solid var(--paper);color:var(--paper);cursor:pointer;
-  font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;
   text-transform:uppercase;padding:3px 9px;opacity:.75}
 .themebtn:hover{opacity:1}
 .eyebrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;
-  font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-2);margin-bottom:14px}
+  font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-2);margin-bottom:14px}
 .dot{width:3px;height:3px;background:var(--rule);border-radius:50%}
 .ledger{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);
   border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
@@ -5603,13 +5649,13 @@ const CSS = `
 .ledger.cztery .big{font-size:32px}
 @media(max-width:900px){ .ledger.cztery{grid-template-columns:repeat(2,1fr)} }
 .col{background:var(--paper);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
-.lbl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.lbl{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
 .big{font-family:'Instrument Serif',serif;font-size:38px;line-height:1;font-variant-numeric:tabular-nums}
 .big em,.mid em{font-family:'IBM Plex Mono',monospace;font-style:normal;font-size:12px;margin-left:5px;color:var(--ink-2)}
-.big.quiet,.mid.quiet{color:var(--plan)}
-.sub{font-size:11px;color:var(--ink-2)}
+.big.quiet,.mid.quiet{color:var(--plan-tx)}
+.sub{font-size:12px;color:var(--ink-2)}
 .col.var.ok .big,.col.var.ok .mid{color:var(--good)}
-.col.var.off .big,.col.var.off .mid{color:var(--warn)}
+.col.var.off .big,.col.var.off .mid{color:var(--warn-tx)}
 .progress{display:flex;align-items:center;gap:20px;margin-top:14px;padding-top:14px;
   border-top:1px solid var(--rule);flex-wrap:wrap}
 .rings{display:flex;gap:14px;flex-shrink:0}
@@ -5620,25 +5666,25 @@ const CSS = `
 .t-plan{stroke:var(--plan)}
 .t-act{stroke:var(--actual)}
 .rtxt{font-family:'IBM Plex Mono',monospace;font-size:13px;fill:var(--ink);text-anchor:middle;font-weight:500}
-.rlab{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;
+.rlab{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ink-2)}
 .barwrap{flex:1;min-width:220px}
 .bar-fill{height:5px;background:var(--actual);border-radius:99px}
 .bar{background:var(--rule);height:5px;border-radius:99px;overflow:hidden}
-.bar-meta{display:flex;justify-content:space-between;margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-2)}
-.pnote{font-size:11px;color:var(--ink-2);margin:8px 0 0;font-style:italic}
+.bar-meta{display:flex;justify-content:space-between;margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
+.pnote{font-size:13px;color:var(--ink-2);margin:8px 0 0;font-style:italic}
 .panel{margin-top:16px;border:1px solid var(--rule);background:var(--panel);padding:16px;
   border-radius:var(--r-lg)}
 .chart{width:100%;height:auto;display:block}
 .band-0{fill:var(--band-0)}.band-1{fill:var(--band-1)}.band-2{fill:var(--band-2)}
 .grid{stroke:var(--rule);stroke-width:.5}
-.ytick,.xtick{font-family:'IBM Plex Mono',monospace;font-size:8.5px;fill:var(--ink-2)}
+.ytick,.xtick{font-family:'IBM Plex Mono',monospace;font-size:12px;fill:var(--ink-2)}
 .ytick{text-anchor:end}
 .target{stroke:var(--good);stroke-width:1;stroke-dasharray:2 3}
 .planline{fill:none;stroke:var(--plan);stroke-width:1.5;stroke-dasharray:5 3}
 .trendline{fill:none;stroke:var(--actual);stroke-width:2}
 .pt{fill:var(--ink)}
-.legend{display:flex;gap:16px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-2)}
+.legend{display:flex;gap:16px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .legend span{display:flex;align-items:center;gap:6px}
 .legend i{width:14px;height:2px;display:inline-block}
 .k-plan{background:var(--plan)}.k-trend{background:var(--actual)}
@@ -5646,40 +5692,40 @@ const CSS = `
 .tabs{display:flex;gap:1px;margin-top:18px;background:var(--rule);border:1px solid var(--rule);
   border-radius:var(--r);overflow:hidden}
 .tab{flex:1;padding:9px 6px;background:var(--paper);border:0;cursor:pointer;font-family:'IBM Plex Mono',monospace;
-  font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
 .tab.on{background:var(--ink);color:var(--paper)}
 .bal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.13em;text-transform:uppercase;
   color:var(--ink-2);margin-bottom:14px}
 .mid{font-family:'Instrument Serif',serif;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
-.tiny-note{letter-spacing:0;text-transform:none;opacity:.7}
+.tiny-note{letter-spacing:0;text-transform:none;opacity:.85}
 .form .row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .form .row.top{padding-bottom:16px;border-bottom:1px solid var(--rule);margin-bottom:18px}
 .prefill{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  margin:-4px 0 16px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2)}
+  margin:-4px 0 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .ghost{border:1px solid var(--rule);border-radius:99px;background:transparent;cursor:pointer;padding:6px 12px;
-  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .ghost:hover{border-color:var(--ink);color:var(--ink)}
-.ghost.tiny{padding:4px 10px;font-size:9.5px}
+.ghost.tiny{padding:4px 10px;font-size:12px}
 .ghost.tiny.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .filters{display:flex;gap:5px}
-.delta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:none;letter-spacing:0;margin-top:1px}
+.delta{font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:none;letter-spacing:0;margin-top:1px}
 .delta.good{color:var(--good)}
 .form label{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px;font-family:'IBM Plex Mono',monospace;
-  font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+  font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
 .form input,.form textarea{font-family:'IBM Plex Mono',monospace;font-size:14px;padding:8px 10px;
   border:1px solid var(--rule);background:var(--paper);color:var(--ink);text-transform:none;letter-spacing:0;
   border-radius:var(--r-sm);width:100%}
 .frow{display:flex;align-items:center;gap:18px;padding:13px 0;border-bottom:1px solid var(--hair)}
-.frow.hi .fkey em{opacity:.75}
+.frow.hi .fkey em{opacity:.9}
 .frow.last{border-bottom:0;align-items:flex-start}
-.fkey{width:180px;flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;
+.fkey{width:180px;flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink-2)}
-.fkey em{font-style:normal;text-transform:none;letter-spacing:0;opacity:.6;font-size:10px;margin-left:6px}
+.fkey em{font-style:normal;text-transform:none;letter-spacing:0;opacity:.85;font-size:12px;margin-left:6px}
 .fval{flex:1;min-width:0}
 .fval.kcal{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .fval.kcal input{width:110px}
-.unit{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2)}
+.unit{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 /* wszystkie kontrolki: ta sama siatka, ta sama wysokość */
 .pips,.scale,.chips{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;width:100%}
 .pip,.sc,.chip{height:46px;border-radius:var(--r-sm);border:1px solid var(--rule);background:var(--paper);cursor:pointer;
@@ -5687,9 +5733,9 @@ const CSS = `
   padding:0 4px;color:var(--ink-2);transition:background .12s,border-color .12s}
 .pip:hover,.sc:hover,.chip:hover{border-color:var(--ink-2)}
 .pip{font-family:'IBM Plex Mono',monospace;font-size:14px}
-.sc{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.02em;
+.sc{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.02em;
   text-transform:lowercase;text-align:center;line-height:1.15}
-.chip{font-family:'IBM Plex Sans',sans-serif;font-size:11.5px;text-align:center;line-height:1.15}
+.chip{font-family:'IBM Plex Sans',sans-serif;font-size:12px;text-align:center;line-height:1.15}
 .pip.on,.sc.on,.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .m{width:12px;height:12px;display:inline-block;flex-shrink:0}
 .m0{background:var(--warn);clip-path:polygon(50% 100%,0 25%,100% 25%)}
@@ -5701,10 +5747,10 @@ const CSS = `
 
 .actions{display:flex;align-items:center;gap:14px;padding-top:18px;margin-top:6px;border-top:1px solid var(--rule);flex-wrap:wrap}
 .primary{padding:11px 20px;background:var(--ink);color:var(--paper);border:0;border-radius:99px;cursor:pointer;
-  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
-.ready{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--good)}
-.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
-.tbl th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.ready{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--good)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--ink-2);text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);font-weight:500}
 .tbl td{padding:7px 8px;border-bottom:1px solid var(--hair)}
 .tbl .n{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:right}
@@ -5720,57 +5766,57 @@ const CSS = `
 /* Stała wysokość linii, nie mnożnik: podpis rzędu jest mniejszy od liczb,
    a przy line-height zależnym od czcionki drugi rząd rozjeżdżał się o piksel. */
 .tdelta{display:block;font-style:normal;margin-top:3px;white-space:nowrap;line-height:14px;
-  font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-2)}
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .tdelta.good{color:var(--good)}
-.tdelta.warn{color:var(--warn)}
+.tdelta.warn{color:var(--warn-tx)}
 /* Podpis rzędu w kolumnie daty — mówi, do czego odnoszą się liczby obok. */
-.tetykieta{letter-spacing:.04em;text-transform:uppercase;font-size:8.5px;opacity:.75}
+.tetykieta{letter-spacing:.04em;text-transform:uppercase;font-size:12px;opacity:.85}
 .rozwbtn{background:none;border:0;padding:0;cursor:pointer;color:var(--ink);
   font-family:inherit;font-size:inherit;text-decoration:underline;
   text-decoration-style:dotted;text-underline-offset:3px}
-.rozwbtn:hover{color:var(--plan)}
-.tbl .warn{color:var(--warn)}.tbl .good{color:var(--good)}
+.rozwbtn:hover{color:var(--plan-tx)}
+.tbl .warn{color:var(--warn-tx)}.tbl .good{color:var(--good)}
 .silabar{display:flex;gap:6px;align-items:flex-end;height:90px;padding-bottom:16px;position:relative}
 .silacol{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative}
 .silafill{width:100%;transition:height .3s;border-radius:var(--r-sm) var(--r-sm) 0 0}
 .s0{background:var(--warn)}.s1{background:#B5705A}.s2{background:var(--rule)}
 .s3{background:#7E9B6E}.s4{background:var(--good)}
 .silax{position:absolute;bottom:-15px;left:0;right:0;text-align:center;
-  font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--ink-2)}
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .journal{display:flex;flex-direction:column;gap:1px;background:var(--rule);border:1px solid var(--rule);
   border-radius:var(--r);overflow:hidden}
 .jitem{background:var(--paper)}
 .jitem.open{background:var(--open)}
 .jhead{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;
-  background:none;border:0;cursor:pointer;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-2)}
+  background:none;border:0;cursor:pointer;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .jhead:hover{background:var(--hover)}
-.jdate{font-size:10.5px;letter-spacing:.04em}
+.jdate{font-size:12px;letter-spacing:.04em}
 .jstats{display:flex;align-items:center;gap:9px;margin-left:auto;margin-right:14px}
 .jstats b{font-size:13px;color:var(--ink);font-weight:500}
-.jmeta{font-size:10px;opacity:.75}
-.jflag{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--rule);min-width:52px;text-align:right}
-.jflag.has{color:var(--actual)}
+.jmeta{font-size:12px;opacity:.85}
+.jflag{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);min-width:52px;text-align:right}
+.jflag.has{color:var(--actual-tx)}
 .jbody{padding:2px 14px 16px}
 .jgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:9px;
   padding:11px 0 13px;border-top:1px solid var(--hair)}
 .jgrid span{display:flex;flex-direction:column;gap:2px;font-family:'IBM Plex Mono',monospace;font-size:12px}
-.jgrid em{font-style:normal;font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2)}
-.jnote{font-size:12.5px;font-style:italic;color:var(--ink-2);margin:0 0 13px;padding-left:11px;border-left:2px solid var(--rule)}
+.jgrid em{font-style:normal;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2)}
+.jnote{font-size:14px;font-style:italic;color:var(--ink-2);margin:0 0 13px;padding-left:11px;border-left:2px solid var(--rule)}
 .jcom{background:var(--paper);border-left:2px solid var(--actual);padding:12px 14px;
   border-radius:0 var(--r-sm) var(--r-sm) 0}
 .jcom.empty-com{border-left-color:var(--rule)}
-.jcomlbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--actual);margin-bottom:7px}
+.jcomlbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--actual-tx);margin-bottom:7px}
 .empty-com .jcomlbl{color:var(--ink-2)}
-.jcom p{margin:0 0 9px;font-size:13px}
+.jcom p{margin:0 0 9px;font-size:15px;line-height:1.55}
 .jcom p:last-of-type{margin-bottom:0}
 .empty-com p{color:var(--ink-2);font-style:italic;margin-bottom:11px}
 .minirow{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-top:3px}
 .minirow .mini{margin-top:0}
-.mini-sep{color:var(--rule);font-size:10px}
+.mini-sep{color:var(--plan-tx);font-size:12px}
 .mini{background:none;border:0;padding:0;cursor:pointer;text-align:left;
-  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--plan);text-decoration:underline;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--plan-tx);text-decoration:underline;
   text-underline-offset:3px;margin-top:3px}
 .mini:hover{color:var(--ink)}
 /* Kafle dni w tej samej konwencji co sen, FBW i aktywności:
@@ -5799,26 +5845,26 @@ const CSS = `
 .tyd-out{display:flex;align-items:baseline;gap:10px;margin-top:12px;
   padding-top:11px;border-top:1px solid var(--hair);flex-wrap:wrap}
 .tyd-out b{font-family:'Instrument Serif',serif;font-size:24px;font-weight:400;line-height:1}
-.tyd-out span{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-2);
+.tyd-out span{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2);
   letter-spacing:.03em}
 .tyd-empty{font-style:italic;letter-spacing:0}
 .closing{margin-top:18px;border-top:2px solid var(--ink);padding-top:16px}
 .cl-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
-  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.13em;
   text-transform:uppercase;color:var(--ink-2);margin-bottom:16px}
-.cl-state{padding:3px 10px;border:1px solid var(--actual);border-radius:99px;color:var(--actual);font-size:9px}
+.cl-state{padding:3px 10px;border:1px solid var(--actual);border-radius:99px;color:var(--actual-tx);font-size:12px}
 .cl-state.done{border-color:var(--good);color:var(--good)}
 .cl-step{display:flex;gap:13px;margin-bottom:20px}
 .cl-step.dim{opacity:.45}
 .cl-num{width:22px;height:22px;flex-shrink:0;border:1px solid var(--ink);border-radius:50%;
   display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;
-  font-size:11px;color:var(--ink)}
+  font-size:12px;color:var(--ink)}
 .cl-body{flex:1;min-width:0}
-.cl-lbl{margin:2px 0 10px;font-size:12.5px;color:var(--ink-2)}
-.cl-ta{width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px;
+.cl-lbl{margin:2px 0 10px;font-size:14px;color:var(--ink-2)}
+.cl-ta{width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:15px;padding:10px;
   border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:var(--r-sm);
   margin-bottom:11px;resize:vertical}
-.report{font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:pre-wrap;
+.report{font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:pre-wrap;
   background:var(--paper);border:1px solid var(--rule);padding:13px;margin:11px 0 0;
   border-radius:var(--r-sm);max-height:240px;overflow:auto}
 .cl-btns{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
@@ -5827,33 +5873,33 @@ const CSS = `
 .navbtn{width:30px;height:30px;border:1px solid var(--rule);border-radius:50%;background:transparent;
   cursor:pointer;color:var(--ink-2);font-size:15px;line-height:1;flex-shrink:0}
 .navbtn:hover{border-color:var(--ink);color:var(--ink)}
-.kaltyt{flex:1;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;
+.kaltyt{flex:1;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;
   letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
 .kaltyt b{color:var(--ink);font-weight:500}
-.kaltyt em{display:block;font-style:normal;font-size:9px;letter-spacing:.06em;
-  text-transform:none;color:var(--ink-2);margin-top:3px;opacity:.8}
+.kaltyt em{display:block;font-style:normal;font-size:12px;letter-spacing:.06em;
+  text-transform:none;color:var(--ink-2);margin-top:3px;opacity:.85}
 .kalhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-bottom:3px}
-.kalhead span{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9px;
+.kalhead span{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;
   letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);padding-bottom:4px}
 .kalgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
 .kd{position:relative;min-height:82px;border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);
   padding:5px 5px 6px;display:flex;flex-direction:column;gap:3px;min-width:0;position:relative}
-.kd.obcy{opacity:.32}
+.kd.obcy{opacity:.5}
 .kd.nd{background:var(--tint)}
-.kd-n{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2)}
+.kd-n{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .kd-kg{position:absolute;top:4px;right:6px;font-family:'IBM Plex Mono',monospace;
-  font-size:10.5px;font-weight:500}
-.kd-kg.wyk{color:var(--actual)}
+  font-size:12px;font-weight:500}
+.kd-kg.wyk{color:var(--actual-tx)}
 .kd-kg.dzien{color:var(--ink);font-weight:400}
-.kd-kg.prog{color:var(--ink-2);opacity:.7}
+.kd-kg.prog{color:var(--ink-2);font-style:italic}
 .kd-kcal{position:absolute;bottom:4px;right:6px;font-family:'IBM Plex Mono',monospace;
-  font-size:9px;color:var(--plan)}
+  font-size:12px;color:var(--plan-tx)}
 .kl-dane{margin-top:12px;margin-bottom:2px}
-.kl-dane b{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500}
-.lg-wyk{color:var(--actual)}
+.kl-dane b{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500}
+.lg-wyk{color:var(--actual-tx)}
 .lg-dzien{color:var(--ink)}
-.lg-kcal{color:var(--plan);font-size:9px!important}
-.kd-ev{font-size:8.5px;line-height:1.25;padding:3px 5px;border-radius:4px;
+.lg-kcal{color:var(--plan-tx);font-size:12px!important}
+.kd-ev{font-size:12px;line-height:1.25;padding:3px 5px;border-radius:4px;
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
   border-left:2px solid}
 .e-pomiar{background:rgba(124,148,141,.18);border-color:var(--plan);color:var(--ink)}
@@ -5867,15 +5913,18 @@ const CSS = `
 .kd-ev{border:0;cursor:pointer;text-align:left;font-family:inherit;width:100%}
 .kd-ev:hover{filter:brightness(.94)}
 .kallegend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;
-  font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-2)}
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .kallegend span{display:flex;align-items:center;gap:6px}
 .kallegend i{width:11px;height:11px;border-radius:3px;display:inline-block;border-left:2px solid}
 @media(max-width:600px){
-  .kd{min-height:58px;padding:4px}
-  .kd-ev{font-size:7.5px;-webkit-line-clamp:2}
+  /* Komórka ma tu ~47 px szerokości. Waga przypięta w prawym rogu przy
+     12 px wchodziła na numer dnia, więc na telefonie liczby idą pod nim. */
+  .kd{min-height:58px;padding:4px 3px;gap:1px}
+  .kd-kg,.kd-kcal{position:static;line-height:1.2;letter-spacing:-.02em}
+  .kd-ev{font-size:12px;-webkit-line-clamp:2;padding:2px 3px;margin-top:2px}
 }
 .wyklucz{display:flex;align-items:center;gap:9px;background:transparent;border:0;padding:0;
-  cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;color:var(--ink-2);
+  cursor:pointer;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--ink-2);
   text-align:left}
 .wyklucz .box{width:16px;height:16px;border:1px solid var(--rule);border-radius:4px;
   flex-shrink:0;display:inline-block;position:relative}
@@ -5886,35 +5935,35 @@ const CSS = `
 .wyklucz.on .box::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:9px;
   border:solid var(--paper);border-width:0 2px 2px 0;transform:rotate(45deg)}
 .wyklucz:hover .box{border-color:var(--ink)}
-.hintline{margin:7px 0 0;font-size:11px;color:var(--ink-2);opacity:.8;font-style:italic}
+.hintline{margin:7px 0 0;font-size:13px;color:var(--ink-2);opacity:.85;font-style:italic}
 .imp-lbl{position:relative;overflow:hidden;display:inline-block}
 .imp-in{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .impbox{border-left:2px solid var(--good);background:var(--tint);padding:12px 14px;
-  margin:0 0 14px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:12.5px}
+  margin:0 0 14px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:14px}
 .impbox.err{border-left-color:var(--warn)}
 .impbox b{font-weight:500}
 .impbox .note{margin-top:10px}
 .imp-tbl{margin-top:10px}
-.imp-tbl th{font-size:9px}
+.imp-tbl th{font-size:12px}
 .imp-tbl td{padding:5px 7px;font-size:12px}
 .imp-akcje{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
 .exp{padding:0}
 .exp-tog{width:100%;display:flex;align-items:center;gap:10px;padding:13px 16px;
   background:none;border:0;cursor:pointer;text-align:left;
-  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.13em;
   text-transform:uppercase;color:var(--ink-2)}
 .exp-tog:hover{color:var(--ink)}
 .exp-tog .tiny-note{margin-left:auto}
 .exp-body{padding:2px 16px 16px;border-top:1px solid var(--hair)}
 .exp-body .exp-row{padding-top:14px}
-.imp-tbl{font-size:11.5px}
-.imp-tbl th{font-size:8.5px}
+.imp-tbl{font-size:12px}
+.imp-tbl th{font-size:12px}
 .imp-tbl td{padding:5px 6px}
 .imp-akcje{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
 .exp-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .exp-txt{flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px}
 .exp-txt b{font-size:13px;font-weight:500}
-.exp-txt em{font-style:normal;font-size:11.5px;color:var(--ink-2);line-height:1.45}
+.exp-txt em{font-style:normal;font-size:13px;color:var(--ink-2);line-height:1.45}
 .agenda{padding-bottom:14px}
 .ag-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .ag{cursor:pointer;display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--hair)}
@@ -5933,24 +5982,24 @@ const CSS = `
 .ag.wkrotce .ag-dot{background:var(--plan)}
 .ag-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .ag-body b{font-size:13px;font-weight:500}
-.ag-body em{font-style:normal;font-size:11px;color:var(--ink-2)}
-.ag-when{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;
+.ag-body em{font-style:normal;font-size:12px;color:var(--ink-2)}
+.ag-when{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.06em;
   text-transform:uppercase;color:var(--ink-2);flex-shrink:0;text-align:right}
-.ag.teraz .ag-when{color:var(--actual)}
-.ag.zalegle .ag-when{color:var(--warn)}
-.ag-foot{margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
-  letter-spacing:.04em;color:var(--ink-2);opacity:.75}
+.ag.teraz .ag-when{color:var(--actual-tx)}
+.ag.zalegle .ag-when{color:var(--warn-tx)}
+.ag-foot{margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:12px;
+  letter-spacing:.04em;color:var(--ink-2);opacity:.85}
 .subtab.biezacy::after{content:"";width:5px;height:5px;border-radius:50%;
   background:var(--actual);display:inline-block;margin-left:7px;vertical-align:middle}
 .cyklhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
   margin-bottom:12px}
 .cyklhead b{display:block;font-size:15px;font-weight:600}
-.cyklhead em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+.cyklhead em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:12px;
   color:var(--ink-2);letter-spacing:.04em}
-.cstan{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;
+.cstan{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;
   text-transform:uppercase;padding:4px 10px;border:1px solid var(--rule);border-radius:99px;
   color:var(--ink-2);white-space:nowrap;flex-shrink:0}
-.c-aktualny{border-color:var(--actual);color:var(--actual)}
+.c-aktualny{border-color:var(--actual);color:var(--actual-tx)}
 .c-miniony{opacity:.6}
 .seslist{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
 .sesbtn{display:flex;align-items:center;gap:8px;padding:9px 15px;border:1px solid var(--rule);
@@ -5968,40 +6017,40 @@ const CSS = `
 .cw-img.pusty{background:var(--tint);border-style:dashed}
 .cw-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .cw-txt b{font-size:13.5px;font-weight:500}
-.cw-txt em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2)}
+.cw-txt em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .cw-wt{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .cw-wt input{width:74px;height:40px;padding:0 8px;text-align:center;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);
   font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500}
 .cw-wt input:hover,.cw-wt input:focus{border-color:var(--ink)}
 .cw-wt input::placeholder{color:var(--rule)}
-.cw-j{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-2);width:26px}
+.cw-j{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2);width:26px}
 .cw-hist{width:30px;height:30px;flex-shrink:0;border:1px solid var(--rule);border-radius:50%;
-  background:transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;
+  background:transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;
   color:var(--ink-2)}
 .cw-hist:hover{border-color:var(--ink);color:var(--ink)}
-.cw-delta{display:block;margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;
+.cw-delta{display:block;margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:12px;
   color:var(--good)}
 .cw-h{margin-top:11px;padding:12px 14px;background:var(--tint);border-radius:var(--r-sm)}
 .subtabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
 .subtab{padding:6px 13px;background:transparent;border:1px solid var(--rule);border-radius:99px;
-  cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;
+  cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink-2)}
 .subtab:hover{border-color:var(--ink-2);color:var(--ink)}
 .subtab.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.pdesc{font-size:12.5px;color:var(--ink-2);margin:0 0 16px;padding-left:11px;
+.pdesc{font-size:14px;color:var(--ink-2);margin:0 0 16px;padding-left:11px;
   border-left:2px solid var(--rule)}
 .prow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .prow label{display:flex;flex-direction:column;gap:5px;flex:1;min-width:112px;
-  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink-2)}
 .prow input,.prow select{font-family:'IBM Plex Mono',monospace;font-size:13.5px;padding:8px 10px;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);
   text-transform:none;letter-spacing:0;width:100%}
 .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .deltarow td{font-weight:500;border-top:1px solid var(--rule);border-bottom:0;
-  font-family:'IBM Plex Mono',monospace;font-size:11px}
-.deltarow td:first-child{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+  font-family:'IBM Plex Mono',monospace;font-size:12px}
+.deltarow td:first-child{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
 .metoda{margin-bottom:14px}
 .mchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
 .chipm{padding:8px 16px;border:1px solid var(--rule);border-radius:99px;background:var(--paper);
@@ -6011,32 +6060,32 @@ const CSS = `
 .krewgrp{margin-top:18px}
 .krewhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
   padding-bottom:6px;border-bottom:1px solid var(--rule);
-  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;
   text-transform:uppercase;color:var(--ink)}
-.krewhead em{font-style:normal;font-size:9px;letter-spacing:.04em;text-transform:none;color:var(--ink-2)}
+.krewhead em{font-style:normal;font-size:12px;letter-spacing:.04em;text-transform:none;color:var(--ink-2)}
 .krewhead .wact{margin-left:10px}
-.krewgrp .tbl td{padding:6px 8px;font-size:12.5px}
+.krewgrp .tbl td{padding:6px 8px;font-size:14px}
 .kn{max-width:210px}
-.kuw{display:block;font-size:10.5px;color:var(--ink-2);font-style:italic;
+.kuw{display:block;font-size:12px;color:var(--ink-2);font-style:italic;
   line-height:1.35;margin-top:3px}
-.ku{font-size:10px;color:var(--ink-2)}
-.kref{font-size:10.5px;white-space:nowrap}
+.ku{font-size:12px;color:var(--ink-2)}
+.kref{font-size:12px;white-space:nowrap}
 .f-prog td:first-child{box-shadow:inset 2px 0 0 var(--warn)}
-.f-prog .n.strong{color:var(--warn)}
+.f-prog .n.strong{color:var(--warn-tx)}
 .f-gora td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
-.f-gora .n.strong{color:var(--actual)}
+.f-gora .n.strong{color:var(--actual-tx)}
 /* Import wpisuje flagę "uwaga" — bez tej reguły wyniki na granicy zakresu
    wchodziły z klasą f-uwaga, dla której nie było stylu, i nic się nie
    podświetlało mimo obietnicy w opisie pod tabelą. */
 .f-uwaga td:first-child{box-shadow:inset 2px 0 0 var(--actual)}
-.f-uwaga .n.strong{color:var(--actual)}
+.f-uwaga .n.strong{color:var(--actual-tx)}
 .makrorow{display:flex;gap:10px;flex-wrap:wrap}
 .makropole{display:flex;flex-direction:column;gap:4px;flex:1;min-width:96px}
-.makropole em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+.makropole em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:12px;
   letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
 .makropole input{font-family:'IBM Plex Mono',monospace;font-size:13.5px;padding:8px 10px;width:100%;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
-.makrodelta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-2)}
+.makrodelta{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .szukajka{display:flex;align-items:center;gap:9px;margin:0 0 11px;flex-wrap:wrap}
 .szukaj-in{flex:0 1 46%;min-width:160px;font-family:'IBM Plex Mono',monospace;font-size:13px;padding:9px 11px;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
@@ -6048,42 +6097,42 @@ const CSS = `
 .tagi-filtr{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
 .tag{display:inline-flex;align-items:baseline;gap:4px;padding:4px 10px;border:1px solid var(--rule);
   border-radius:99px;background:var(--paper);cursor:pointer;color:var(--ink-2);
-  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.02em}
-.tag em{font-style:normal;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+  font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.02em}
+.tag em{font-style:normal;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
 .tag:hover{border-color:var(--ink-2);color:var(--ink)}
 .tag.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .tag.on em{opacity:.75}
 .dtagi{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
-.mini-tag{padding:3px 8px;font-size:9.5px}
+.mini-tag{padding:3px 8px;font-size:12px}
 .kswitch{display:flex;gap:5px;flex-wrap:wrap;margin:18px 0 4px}
-.kdelta{font-size:11px;color:var(--ink-2);white-space:nowrap}
+.kdelta{font-size:12px;color:var(--ink-2);white-space:nowrap}
 .sparks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:14px}
 .spark{border:1px solid var(--rule);border-radius:var(--r-sm);padding:9px 11px 4px;background:var(--paper)}
 .spark-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:2px}
 .spark-head b{font-size:12px;font-weight:500}
-.spark-head span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-2)}
+.spark-head span{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .spark-head em{font-style:normal;margin-left:6px;color:var(--ink)}
 .sparksvg{width:100%;height:auto;display:block;overflow:visible}
 .sparkline{fill:none;stroke:var(--actual);stroke-width:1.5}
 .sparkpt{fill:var(--actual)}
-.sparktick{font-family:'IBM Plex Mono',monospace;font-size:7.5px;fill:var(--ink-2)}
+.sparktick{font-family:'IBM Plex Mono',monospace;font-size:12px;fill:var(--ink-2)}
 .pempty{padding:18px 0}
 .pempty p{margin:0 0 8px;color:var(--ink-2)}
 .dishes{display:flex;flex-direction:column;gap:10px}
 .dish{border:1px solid var(--rule);background:var(--paper);padding:13px 15px;border-radius:var(--r)}
 .dtop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
 .dtop h4{margin:0;font-size:14.5px;font-weight:500;line-height:1.3}
-.badge{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+.badge{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
   padding:3px 8px;border:1px solid var(--rule);border-radius:99px;color:var(--ink-2);
   white-space:nowrap;flex-shrink:0}
 /* statusDania() zwraca wyłącznie "wykonane" albo "kuchnia" — warianty
    po starym, pięciostatusowym systemie nie mają jak się dopasować. */
-.b-kuchnia{border-color:var(--actual);color:var(--actual)}
-.dmacro{display:flex;gap:16px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2)}
+.b-kuchnia{border-color:var(--actual);color:var(--actual-tx)}
+.dmacro{display:flex;gap:16px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .dmacro b{color:var(--ink);font-size:12px}
-.dq{opacity:.7}
+.dq{opacity:.85}
 .drate{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
-.rlbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.rlbl{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
 .score{display:inline-flex;align-items:center;gap:6px;margin-right:12px;
   font-family:'IBM Plex Mono',monospace}
 .score .track{width:54px;height:5px;background:var(--rule);display:inline-block;position:relative;
@@ -6093,18 +6142,19 @@ const CSS = `
 .score.mid .track i{background:var(--actual)}
 .score.lo .track i{background:var(--warn)}
 .score b{font-size:12.5px;font-weight:500}
-.score em{font-style:normal;font-size:9.5px;color:var(--ink-2)}
-.score.none{color:var(--ink-2);font-size:10px;font-style:italic}
-.dchg{font-size:12.5px;color:var(--ink-2);margin:10px 0 0;padding-left:11px;border-left:2px solid var(--rule)}
+.score em{font-style:normal;font-size:12px;color:var(--ink-2)}
+.score.none{color:var(--ink-2);font-size:12px;font-style:italic}
+.dchg{font-size:14px;color:var(--ink-2);margin:10px 0 0;padding-left:11px;border-left:2px solid var(--rule)}
 .dact{margin-top:11px}
-.note{font-size:11.5px;color:var(--ink-2);margin:12px 0 0;font-style:italic}
+.note{font-size:13px;color:var(--ink-2);margin:12px 0 0;font-style:italic}
 .foot{margin-top:18px;padding-top:12px;border-top:1px solid var(--hair);
   display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-2);letter-spacing:.06em}
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2);letter-spacing:.06em}
 .foot-dev{opacity:.85;text-align:right}
 .foot-dev b{font-weight:500;color:var(--ink)}
 @media(max-width:600px){
   .rej{padding:14px}.ledger{grid-template-columns:1fr}.big{font-size:32px}
+  .tab{padding:9px 3px;letter-spacing:.01em}
   .frow{flex-direction:column;align-items:flex-start;gap:8px}.fkey{width:auto}
   .tyd{padding:10px 11px}
   .pips,.scale,.chips{grid-auto-flow:row;grid-template-columns:repeat(3,1fr)}
@@ -6118,7 +6168,7 @@ const CSS = `
 .snav{padding:0 0 10px;background:none;border:0;border-bottom:2px solid transparent;
   text-transform:uppercase;letter-spacing:.09em;
   margin-bottom:-1px;cursor:pointer;white-space:nowrap;
-  font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+  font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;color:var(--ink-2)}
 .snav:hover{color:var(--ink)}
 .snav.on{color:var(--ink);border-bottom-color:var(--ink)}
 
@@ -6134,7 +6184,7 @@ const CSS = `
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);
   color:var(--ink);width:100%}
 .kalk-fld input:hover,.kalk-fld input:focus{border-color:var(--ink-2)}
-.cap em{font-style:normal;text-transform:none;letter-spacing:0;opacity:.65;margin-left:5px}
+.cap em{font-style:normal;text-transform:none;letter-spacing:0;opacity:.85;margin-left:5px}
 .pquick{display:flex;gap:5px;flex-wrap:wrap}
 .pq{width:44px;height:44px;border:1px solid var(--rule);border-radius:var(--r-sm);
   background:var(--paper);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:15px;
@@ -6144,15 +6194,15 @@ const CSS = `
 .pq-other{flex:1;min-width:64px;height:44px;padding:0 10px;text-align:center;
   border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);
   font-family:'IBM Plex Mono',monospace;font-size:14px}
-.pq-other::placeholder{color:var(--rule);font-size:11px}
-.pinfo{font-style:normal;font-size:11px;color:var(--ink-2)}
+.pq-other::placeholder{color:var(--rule);font-size:12px}
+.pinfo{font-style:normal;font-size:12px;color:var(--ink-2)}
 .kalk-btns{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-.kalk-kontrola{margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+.kalk-kontrola{margin:12px 0 0;font-family:'IBM Plex Mono',monospace;font-size:12px}
 .kalk-kontrola.ok{color:var(--good)}
-.kalk-kontrola.zla{color:var(--warn)}
-.kalk-progi{margin:10px 0 0;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+.kalk-kontrola.zla{color:var(--warn-tx)}
+.kalk-progi{margin:10px 0 0;font-family:'IBM Plex Mono',monospace;font-size:12px}
 .kalk-progi.ok{color:var(--good)}
-.kalk-progi.zla{color:var(--warn)}
+.kalk-progi.zla{color:var(--warn-tx)}
 .zapisy{margin:0}
 .zap{background:var(--tint);border-radius:var(--r-sm);margin-bottom:6px;overflow:hidden}
 .zap-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -6160,14 +6210,14 @@ const CSS = `
 .zap-head:hover{background:var(--hover)}
 .zap-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .zap-txt b{font-size:13px;font-weight:500}
-.zap-txt em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-2)}
+.zap-txt em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-2)}
 .zap-kcal{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;flex-shrink:0}
-.zap-kcal i{font-style:normal;font-size:9px;color:var(--ink-2);margin-left:3px}
+.zap-kcal i{font-style:normal;font-size:12px;color:var(--ink-2);margin-left:3px}
 .zap-body{padding:0 14px 14px}
-.zap-opis{font-size:12px;color:var(--ink-2);font-style:italic;margin:0 0 11px;
+.zap-opis{font-size:14px;color:var(--ink-2);font-style:italic;margin:0 0 11px;
   padding-left:11px;border-left:2px solid var(--rule)}
 .ledger .col .sub.makro{display:flex;flex-direction:column;gap:2px;line-height:1.5}
-.makro-blon{font-style:normal;opacity:.7}
+.makro-blon{font-style:normal;opacity:.85}
 
 .jact{display:flex;gap:8px;margin-top:10px}
 .wact{white-space:nowrap}
@@ -6176,20 +6226,20 @@ const CSS = `
   padding:10px 14px;margin-bottom:12px;border:1px solid var(--rule);
   border-radius:6px;background:var(--bg-1);font-size:13px}
 .zdalne span{flex:1;min-width:220px}
-.foot-ver{display:block;margin-top:3px;font-style:normal;opacity:.6;
+.foot-ver{display:block;margin-top:3px;font-style:normal;
   font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
 
-.zdalne-strata{display:block;margin-top:4px;color:#B4453C;font-weight:600}
+.zdalne-strata{display:block;margin-top:4px;color:var(--warn-tx);font-weight:600}
 
 .ag-check{flex:none;width:20px;height:20px;border:1px solid var(--rule);border-radius:4px;
-  background:var(--paper);color:var(--ink-3);font-size:11px;line-height:1;cursor:pointer;padding:0}
+  background:var(--paper);color:var(--ink-3);font-size:12px;line-height:1;cursor:pointer;padding:0}
 .ag-check:hover{border-color:var(--ink);color:var(--ink)}
 .ag-body{cursor:pointer}
 .zrobione-lista{margin:16px 0;padding:12px 14px;border:1px solid var(--rule);
   border-radius:6px;background:var(--bg-1)}
 .zrobione-lista ul{list-style:none;margin:8px 0 0;padding:0}
 .zrobione-lista li{display:flex;align-items:center;gap:10px;padding:5px 0;
-  font-size:12.5px;color:var(--ink-2);border-bottom:1px solid var(--hair)}
+  font-size:14px;color:var(--ink-2);border-bottom:1px solid var(--hair)}
 .zrobione-lista li:last-child{border-bottom:none}
 .zrobione-lista li span{flex:1}
 
@@ -6197,8 +6247,8 @@ const CSS = `
 .dtop h4{flex:1;min-width:0}
 .serce{background:none;border:0;cursor:pointer;font-size:19px;line-height:1;
   padding:0 2px;color:var(--ink-2);transition:color .12s,transform .12s}
-.serce:hover{color:var(--warn);transform:scale(1.12)}
-.serce.on{color:var(--warn)}
+.serce:hover{color:var(--warn-tx);transform:scale(1.12)}
+.serce.on{color:var(--warn-tx)}
 .badge.b-wykonane{background:var(--tint);color:var(--ink-2)}
 
 /* ── kuchnia i raporty ───────────────────────────────────── */
@@ -6207,13 +6257,13 @@ const CSS = `
 .dopen{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
 .dporcje{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .dporcje b{font-size:15px;min-width:22px;text-align:center}
-.dalarm{font-size:12px;color:#B4453C;flex-basis:100%}
+.dalarm{font-size:12px;color:var(--warn-tx);flex-basis:100%}
 .drate.edytowalne input{width:52px;text-align:center}
 .dedit{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
   line-height:1.6;padding:10px;border:1px solid var(--rule);border-radius:4px;
   background:var(--bg-0);color:var(--ink-1)}
 .rapbox{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-.md{font-size:13px;line-height:1.7}
+.md{font-size:15px;line-height:1.65}
 .md-h{margin:16px 0 6px;font-size:13px;letter-spacing:.06em}
 .md-p{margin:8px 0}
 .md-hr{border:none;border-top:1px solid var(--rule);margin:16px 0}
@@ -6233,26 +6283,28 @@ const CSS = `
   border-bottom:1px solid var(--rule);font-size:13px}
 .syg:last-of-type{border-bottom:none}
 .syg-txt{flex:1}
-.syg.s-ostrzezenie{color:#B4453C}
+.syg.s-ostrzezenie{color:var(--warn-tx)}
 .syg.s-uwaga{color:var(--ink-1)}
 .syg.s-informacja{color:var(--ink-3)}
 
 /* ── edytor wydarzeń ─────────────────────────────────────── */
 .kd-add{opacity:0;position:absolute;right:3px;top:3px;width:16px;height:16px;
   line-height:14px;border:1px solid var(--rule);border-radius:3px;background:var(--bg-1);
-  color:var(--ink-3);font-size:11px;cursor:pointer;padding:0}
+  color:var(--ink-3);font-size:12px;cursor:pointer;padding:0}
 .kd:hover .kd-add{opacity:1}
+.kd:not(.obcy){cursor:pointer}
+.kd:not(.obcy):hover{border-color:var(--ink-2)}
 .kd-ev.zrob{opacity:.45;text-decoration:line-through}
 .evbox{margin:14px 0;padding:14px;border:1px solid var(--rule);border-radius:6px;
   background:var(--bg-1)}
 .evnazwa{display:block;font-size:12px;color:var(--ink-3);margin-bottom:10px}
-.evnazwa em{font-style:normal;opacity:.7}
+.evnazwa em{font-style:normal;opacity:.85}
 .evnazwa input{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:4px;
   background:var(--bg-0);color:var(--ink-1);font-family:inherit;font-size:13px;margin-top:4px}
-.ghost.del{color:#B4453C;border-color:#B4453C}
+.ghost.del{color:var(--warn-tx);border-color:var(--warn)}
 
 /* ── ustawienia, blokada, synchronizacja ─────────────────── */
-.ust-h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+.ust-h{font-size:12px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--ink-3);margin:18px 0 6px}
 .ust-in{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:4px;
   background:var(--bg-1);color:var(--ink-1);font-family:inherit;font-size:13px}
@@ -6264,8 +6316,27 @@ const CSS = `
 .pinbox{min-height:100vh;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:14px}
 .pinbox b{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
-.pinbox em{font-size:12px;color:var(--bad,#B4453C);font-style:normal}
+.pinbox em{font-size:12px;color:var(--bad,var(--warn));font-style:normal}
 @media(max-width:700px){ .ust-para{grid-template-columns:1fr} }
+/* Cztery kolumny z dwiema datami nie mieszczą się w 375 px, kiedy pola mają
+   16 px. Na telefonie nazwa fazy idzie nad wierszem, a nagłówki pod pola. */
+@media(max-width:600px){
+  .tbl.fazy thead{display:none}
+  .tbl.fazy tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 10px;
+    grid-template-areas:"n t" "o d";padding:10px 0;border-bottom:1px solid var(--hair)}
+  .tbl.fazy td{padding:0;border:0;text-align:left}
+  .tbl.fazy td:nth-child(1){grid-area:n;align-self:end;font-weight:500}
+  .tbl.fazy td:nth-child(2){grid-area:o}
+  .tbl.fazy td:nth-child(3){grid-area:d}
+  .tbl.fazy td:nth-child(4){grid-area:t;justify-self:end;width:88px}
+  .tbl.fazy td:nth-child(n+2)::before{display:block;margin-bottom:3px;font-family:'IBM Plex Mono',monospace;
+    font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  .tbl.fazy td:nth-child(2)::before{content:"od"}
+  .tbl.fazy td:nth-child(3)::before{content:"do"}
+  .tbl.fazy td:nth-child(4)::before{content:"kg/tydz."}
+  .tbl.fazy .ust-in{min-width:0;width:100%;padding:4px;font-family:'IBM Plex Sans',sans-serif}
+  .tbl.fazy .ust-in::-webkit-calendar-picker-indicator{margin:0;padding:0}
+}
 
 /* ── zakładka Ustawienia ─────────────────────────────────── */
 .exp-tog.statyczny{cursor:default}
@@ -6282,13 +6353,13 @@ const CSS = `
   .fval.kcal input{width:100%}
   .pips,.scale{grid-auto-columns:minmax(0,1fr)}
   .pip,.sc,.chip{height:42px}
-  .sc{font-size:8px}
+  .sc{font-size:12px}
   .chips{grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr))}
   .delta{align-self:flex-start}
   .ledger.cztery .big{font-size:26px}
-  .head .eyebrow{font-size:10px}
-  .mockbar{font-size:10px;flex-wrap:wrap;gap:6px}
-  .tbl{font-size:11.5px}
+  .head .eyebrow{font-size:12px}
+  .mockbar{font-size:12px;flex-wrap:wrap;gap:6px}
+  .tbl{font-size:13px}
   .prow{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:400px){
@@ -6299,5 +6370,52 @@ const CSS = `
 @media(max-width:700px){
   .kalk-grid{grid-template-columns:1fr}
   .kalk-in{min-height:150px}
+}
+
+/* ── dotyk ───────────────────────────────────────────────────
+   Na telefonie każdy cel dotyku ma co najmniej 44 px wysokości. Duże
+   kontrolki (zakładki, pola, przyciski główne) rosną naprawdę; drobne
+   linki tekstowe zostają tej samej wielkości, a strefę dotyku poszerza
+   im niewidoczny ::after, żeby nie rozpychać tabel i wierszy. Pola tekstowe
+   mają 16 px — przy mniejszej czcionce iOS powiększa stronę przy każdym
+   stuknięciu w pole i trzeba ją potem ręcznie oddalać. */
+@media (max-width:700px),(pointer:coarse){
+  .rej input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  .rej textarea,.rej select{font-size:16px}
+  .rej input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  .rej select{min-height:44px}
+  .tab,.subtab,.ghost,.chipm,.primary,.sesbtn,.wyklucz,.jhead,.zap-head,.exp-tog{min-height:44px}
+  .ghost.tiny{min-height:36px}
+  .snav{min-height:44px;display:inline-flex;align-items:flex-end}
+  .pip,.sc,.chip{height:44px}
+  .navbtn,.cw-hist{width:44px;height:44px}
+  .ag-check{width:28px;height:28px}
+  .mini,.rozwbtn,.themebtn,.serce,.ag-check,.tag,.ghost.tiny{position:relative}
+  .mini::after,.rozwbtn::after,.themebtn::after,.serce::after,.tag::after{
+    content:"";position:absolute;left:-4px;right:-4px;top:50%;height:44px;transform:translateY(-50%)}
+  .ghost.tiny::after{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+  .ag-check::after{content:"";position:absolute;inset:-8px}
+  .wact .mini{margin-left:14px}
+  .minirow{gap:7px 16px}
+}
+
+/* ── wcięcia systemowe ───────────────────────────────────────
+   Apka z ekranu startowego zajmuje cały ekran razem z notchem i paskiem
+   gestów. Treść odsuwa się od nich, żeby nic nie wchodziło pod systemowe UI. */
+@supports (padding:max(0px)){
+  .rej{padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right));
+    padding-top:max(22px,env(safe-area-inset-top));padding-bottom:max(22px,env(safe-area-inset-bottom))}
+  @media(max-width:600px){
+    .rej{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));
+      padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}
+  }
+}
+
+/* ── ograniczony ruch ────────────────────────────────────────
+   Kto ma w systemie włączone „ogranicz ruch", dostaje zmiany od razu. */
+@media (prefers-reduced-motion:reduce){
+  .rej *,.rej *::before,.rej *::after{transition-duration:.01ms!important;animation-duration:.01ms!important;
+    animation-iteration-count:1!important;scroll-behavior:auto!important}
+  .serce:hover{transform:none}
 }
 `;

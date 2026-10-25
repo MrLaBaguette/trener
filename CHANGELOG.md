@@ -10,6 +10,47 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.49 — 25 października 2026
+
+**Czytelność na telefonie.** Najmniejsze napisy miały 7,5 px, a większość
+podpisów 9–11 px. Teraz nic nie schodzi poniżej 12 px, a teksty do czytania
+(komentarz Ronniego, notatki, opisy, tabele) mają 13–15 px. Szary tekst
+w kolorze linii planu i złoty tekst wykonania miały kontrast ok. 3:1 — dostały
+ciemniejsze odpowiedniki do pisma, linie i wykresy zostały w starych kolorach.
+Przygaszone podpisy, które przez `opacity` spadały poniżej 4,5:1, są mocniejsze.
+Sprawdzone na wszystkich ekranach w trybie jasnym i ciemnym.
+
+**Wykres wagi na telefonie.** Rysował się w stałej szerokości 720 i telefon
+zmniejszał go do ok. 320 px, więc opisy osi miały ~5 px. Teraz rysuje się
+w szerokości ekranu i opisy mają 12 px.
+
+**Cele dotyku.** Zakładki, pola, przyciski i kafle ocen mają na telefonie
+co najmniej 44 px wysokości; drobne linki („edytuj", „usuń", „tryb ciemny")
+mają poszerzoną niewidoczną strefę dotyku. Pola tekstowe mają 16 px — przy
+mniejszych iOS powiększał stronę przy każdym stuknięciu w pole.
+
+**Kalendarz na telefonie.** Dodanie wydarzenia wymagało najechania kursorem na
+dzień, więc na telefonie było niemożliwe. Teraz wystarczy stuknąć dzień;
+stuknięcie w wydarzenie otwiera jego edycję, a edytor przewija się na widok.
+Waga i kalorie w komórce stoją pod numerem dnia, zamiast na niego nachodzić.
+
+**Fazy i tempo na telefonie.** Tabela z dwiema datami rozpychała stronę na
+boki. Na wąskim ekranie każda faza ma nazwę i tempo u góry, daty pod spodem.
+
+**Komunikat „za planem".** Dopisek „W bloku ciężkim to normalne" pokazywał się
+przy każdym opóźnieniu, także w fazie deficytu. Teraz o utrzymaniu wagi mówi
+tylko faza, która ma tempo 0.
+
+**Plank bez „(s)".** Prośba z v1.36 cofnęła się przy przebudowie formularza
+w v1.37 — etykieta znowu brzmi „Plank".
+
+**Dostępność.** Obrys fokusu był wyłączony globalnie, więc z klawiatury nie
+było widać, gdzie się jest — teraz pojawia się przy nawigacji klawiaturą.
+Pasek stanu zapisu jest ogłaszany przez czytnik ekranu, a komunikaty
+o błędach mają rolę alertu. Kto ma w systemie włączone ograniczenie ruchu,
+nie dostaje animacji. Treść odsuwa się od notcha i paska gestów, kiedy apka
+działa z ekranu startowego.
+
 ## v1.48 — 5 października 2026
 
 **Ronnie mówi tak, jak ustalono w instrukcjach projektu.** Prompt w aplikacji
