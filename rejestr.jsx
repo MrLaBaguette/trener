@@ -737,7 +737,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.50";
+const WERSJA_APKI = "1.51";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1140,6 +1140,10 @@ const POMIARY_POD = [["wymiary", "Wymiary"], ["sprawnosc", "Sprawność"], ["car
    zostawia tam, gdzie się było. Nieznany adres nie psuje niczego — apka
    otwiera się na wpisie, jak dotąd. */
 const ZAKLADKI = SEKCJE.flatMap((s) => s.pod.map((p) => p.k));
+/* Błąd pod przyciskiem zapisu. Pojawia się po kliknięciu, więc ma rolę
+   alertu — czytnik ekranu ogłasza go od razu. */
+const BladPola = ({ b }) => (b ? <p className="pole-blad" role="alert">{b.tekst}</p> : null);
+
 function zAdresu() {
   const [t, p] = window.location.hash.replace(/^#\/?/, "").split("/");
   return {
@@ -1158,9 +1162,13 @@ const IKONY = {
   kuchnia: <><path d="M6 3v6a2.5 2.5 0 0 0 5 0V3M8.5 3v5.5M8.5 11.5V21" /><path d="M17.5 21V3c-2 1.2-3 3.8-3 7.5V14h3" /></>,
   staty: <><path d="M4 4v16h16" /><path d="M7.5 14.5l3.5-4 3 2.5 5-6" /></>,
   system: <><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></>,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  serce: <path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z" />,
+  wlewo: <path d="M14.5 6l-6 6 6 6" />,
+  wprawo: <path d="M9.5 6l6 6-6 6" />,
 };
-const Ikona = ({ n }) => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7"
+const Ikona = ({ n, r = 22 }) => (
+  <svg viewBox="0 0 24 24" width={r} height={r} fill="none" stroke="currentColor" strokeWidth="1.7"
        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{IKONY[n]}</svg>
 );
 
@@ -1602,6 +1610,44 @@ export default function Mockup() {
   const [impW, setImpW] = useState(null);
   const [impBlad, setImpBlad] = useState(null);
   const [pod, setPod] = useState(() => zAdresu().pod || "wymiary");
+
+  /* ── Błędy przy polach ─────────────────────────────────
+     Zamiast okienka alert, które zasłaniało formularz i znikało razem
+     z treścią, błąd stoi pod przyciskiem zapisu, a pole, którego brakuje,
+     dostaje obwódkę i fokus. Znika przy pierwszym wpisanym znaku. */
+  const [bledy, setBledy] = useState({});
+  function blad(forma, tekst, pole) {
+    setBledy((b) => ({ ...b, [forma]: { tekst, pole } }));
+    if (pole) setTimeout(() => { const el = document.getElementById(pole); if (el) el.focus(); }, 0);
+  }
+  const czyscBledy = () => setBledy((b) => (Object.values(b).some(Boolean) ? {} : b));
+  const zly = (pole) => (Object.values(bledy).some((b) => b && b.pole === pole) ? true : undefined);
+
+  /* ── Cofnij zamiast „Na pewno?" ─────────────────────────
+     Usunięcie dzieje się od razu, a przez 8 sekund na dole ekranu wisi
+     „Cofnij". Okienko potwierdzenia wyskakiwało przy każdym usunięciu, więc
+     klikało się je odruchowo; cofnięcie ratuje faktyczną pomyłkę. Usunięte
+     pozycje wracają na swoje miejsce w liście. Potwierdzenia przy
+     synchronizacji i imporcie zostają — tam nadpisuje się całe dane. */
+  const [cofnij, setCofnij] = useState(null);
+  useEffect(() => {
+    if (!cofnij) return;
+    const t = setTimeout(() => setCofnij(null), 8000);
+    return () => clearTimeout(t);
+  }, [cofnij]);
+  function usunZCofnij(tekst, lista, setLista, warunek, poCofnieciu) {
+    const usuniete = lista.map((x, i) => [x, i]).filter(([x]) => warunek(x));
+    if (!usuniete.length) return;
+    setLista((prev) => prev.filter((x) => !warunek(x)));
+    setCofnij({ tekst, id: Date.now(), przywroc: () => {
+      setLista((prev) => {
+        const k = [...prev];
+        usuniete.forEach(([x, i]) => { if (!k.includes(x)) k.splice(Math.min(i, k.length), 0, x); });
+        return k;
+      });
+      if (poCofnieciu) poCofnieciu();
+    } });
+  }
   /* Który test ma rozwinięte zmiany względem poprzedniego. Jeden naraz —
      rozwinięte wszystkie robiły z tabeli ścianę liczb. */
   const [openTest, setOpenTest] = useState(null);
@@ -1962,9 +2008,16 @@ export default function Mockup() {
   /* ── Zapis tygodnia ─────────────────────────────────────
      Wpis z tą samą datą nadpisuje poprzedni zamiast tworzyć duplikat —
      poprawka po fakcie jest częstsza niż drugi wpis w tym samym tygodniu. */
+  /* Wybór motywu zapisuje się w ustawieniach urządzenia. Wcześniej był
+     tylko w pamięci strony i po każdym odświeżeniu wracał jasny. */
+  function przelaczMotyw() {
+    setDark(!dark);
+    setUstawienia((u) => ({ ...u, ciemny: !dark }));
+  }
+
   function zapiszTydzien() {
     const w = liczba(waga);
-    if (w == null) { window.alert("Bez wagi tydzień nie ma czego zapisać."); return; }
+    if (w == null) { blad("tydzien", "Bez wagi tydzień nie ma czego zapisać.", "pole-waga"); return; }
     const rekord = {
       id: Date.now(),
       date: dataWpisu,
@@ -2031,8 +2084,10 @@ export default function Mockup() {
   /* Usunięcie wpisu zabiera też komentarz — jeden tydzień to jeden rekord.
      Dane dzienne z importu CSV zostają, bo należą do kalendarza. */
   function usunTydzien(data) {
-    if (!window.confirm(`Usunąć wpis z ${data} razem z komentarzem?`)) return;
-    setEntries((prev) => prev.filter((e) => e.date !== data));
+    const kom = COMMENTS[data];
+    usunZCofnij(`Usunięto wpis z ${data}.`, ENTRIES, setEntries, (e) => e.date === data, () => {
+      if (kom !== undefined) setComments((prev) => ({ ...prev, [data]: kom }));
+    });
     setComments((prev) => { const k = { ...prev }; delete k[data]; return k; });
     setOpenWeek(null);
   }
@@ -2149,8 +2204,7 @@ export default function Mockup() {
   }
 
   function usunDanie(id) {
-    if (!window.confirm("Usunąć to danie z apki? Plik w vaulcie zostaje.")) return;
-    setDania((prev) => prev.filter((x) => x.id !== id));
+    usunZCofnij("Usunięto danie z apki. Plik w vaulcie zostaje.", DANIA, setDania, (x) => x.id === id);
     if (otwarte === id) setOtwarte(null);
   }
 
@@ -2233,7 +2287,7 @@ export default function Mockup() {
      drugi raz byłoby okazją do rozjazdu. */
   function zapiszTest() {
     const p = parseInt(testForm.pull, 10);
-    if (Number.isNaN(p)) { window.alert("Bez podciągnięć test nie ma treści."); return; }
+    if (Number.isNaN(p)) { blad("test", "Bez podciągnięć test nie ma treści.", "pole-test-pull"); return; }
     setTesty((prev) => [...prev.filter((x) => x.date !== testForm.date), {
       id: Date.now(), date: testForm.date,
       plank: parseInt(testForm.plank, 10) || 0, pull: p,
@@ -2260,15 +2314,15 @@ export default function Mockup() {
   }
 
   function usunTest(t) {
-    if (!window.confirm(`Usunąć test z ${t.date}?`)) return;
-    setTesty((prev) => prev.filter((x) => (t.id != null ? x.id !== t.id : x.date !== t.date)));
+    usunZCofnij(`Usunięto test z ${t.date}.`, TESTY, setTesty,
+      (x) => (t.id != null ? x.id === t.id : x.date === t.date));
   }
 
   /* Cardio. Do v1.37 formularz był atrapą — pola bez stanu i przycisk bez
      obsługi — więc nic się stąd nie zapisywało. */
   function zapiszCardio() {
     const sek = sekundyZ(cardioForm.plyw);
-    if (sek == null) { window.alert("Bez czasu na 400 m nie ma czego zapisać. Wpisz go w formacie 9:12."); return; }
+    if (sek == null) { blad("cardio", "Bez czasu na 400 m nie ma czego zapisać. Wpisz go w formacie 9:12.", "pole-cardio-plyw"); return; }
     setCardio((prev) => [...prev.filter((x) => x.date !== cardioForm.date), {
       id: Date.now(), date: cardioForm.date,
       /* Zapisujemy znormalizowany zapis, żeby „9:5" i „9:05" nie były
@@ -2288,13 +2342,16 @@ export default function Mockup() {
   }
 
   function usunCardio(c) {
-    if (!window.confirm(`Usunąć pomiar cardio z ${c.date}?`)) return;
-    setCardio((prev) => prev.filter((x) => (c.id != null ? x.id !== c.id : x.date !== c.date)));
+    usunZCofnij(`Usunięto pomiar cardio z ${c.date}.`, CARDIO, setCardio,
+      (x) => (c.id != null ? x.id === c.id : x.date === c.date));
   }
 
   function zapiszSklad() {
     const w = liczba(skladForm.weight), f = liczba(skladForm.fat), l = liczba(skladForm.lean);
-    if (f == null || l == null) { window.alert("Procent tłuszczu i masa beztłuszczowa są konieczne."); return; }
+    if (f == null || l == null) {
+      blad("sklad", "Procent tłuszczu i masa beztłuszczowa są konieczne.", f == null ? "pole-sklad-fat" : "pole-sklad-lean");
+      return;
+    }
     setScans((prev) => [...prev.filter((x) => !(x.date === skladForm.date && x.kind === skladForm.kind)), {
       id: Date.now(), date: skladForm.date, kind: skladForm.kind, weight: w, fat: f, lean: l,
     }].sort((a, b) => (a.date < b.date ? -1 : 1)));
@@ -2315,10 +2372,9 @@ export default function Mockup() {
   /* Skany z importu DEXA mają id, starsze wpisy bywają bez — wtedy
      rozpoznajemy pomiar po dacie i metodzie. */
   function usunSklad(s) {
-    if (!window.confirm(`Usunąć pomiar ${s.kind} z ${s.date}?`)) return;
-    setScans((prev) => prev.filter((x) => (s.id != null
-      ? x.id !== s.id
-      : !(x.date === s.date && x.kind === s.kind))));
+    usunZCofnij(`Usunięto pomiar ${s.kind} z ${s.date}.`, SCANS, setScans, (x) => (s.id != null
+      ? x.id === s.id
+      : x.date === s.date && x.kind === s.kind));
   }
 
   /* ── Spirometria: ręczny wpis ──────────────────────────
@@ -2337,7 +2393,7 @@ export default function Mockup() {
         const s = staraPoz.find((p) => normSpiro(p.n) === normSpiro(n));
         return { n, w: String(f[k]).trim() + " " + j, ref: s ? s.ref : "", uwaga: s ? s.uwaga : "" };
       });
-    if (!poz.length) { window.alert("Wpisz przynajmniej jeden parametr."); return; }
+    if (!poz.length) { blad("spiro", "Wpisz przynajmniej jeden parametr.", "pole-spiro-" + SPIRO_PARAMY[0][0]); return; }
     staraPoz
       .filter((p) => !SPIRO_PARAMY.some(([, n]) => normSpiro(n) === normSpiro(p.n)))
       .forEach((p) => poz.push(p));
@@ -2367,8 +2423,8 @@ export default function Mockup() {
   }
 
   function usunSpiro(x) {
-    if (!window.confirm(`Usunąć spirometrię z ${x.date}?`)) return;
-    setSpiro((prev) => prev.filter((y) => (x.id != null ? y.id !== x.id : y.date !== x.date)));
+    usunZCofnij(`Usunięto spirometrię z ${x.date}.`, SPIRO, setSpiro,
+      (y) => (x.id != null ? y.id === x.id : y.date === x.date));
     if (spiroEdycja === x.date) { setSpiroForm(spiroFormPusty()); setSpiroEdycja(null); }
   }
 
@@ -2380,7 +2436,7 @@ export default function Mockup() {
   function zapiszKrew() {
     const f = krewForm;
     const wpisana = f.n.trim(), w = f.w.trim();
-    if (!wpisana || !w) { window.alert("Potrzebna nazwa badania i wynik."); return; }
+    if (!wpisana || !w) { blad("krew", "Potrzebna nazwa badania i wynik.", wpisana ? "pole-krew-w" : "pole-krew-n"); return; }
     const takiSam = (p, nazwa) => p.n.trim().toLowerCase() === nazwa.trim().toLowerCase();
     /* Porównanie między pobraniami, przekrój po parametrze i wykresy idą
        po dokładnej nazwie. Ręcznie wpisana „kreatynina" obok „Kreatynina"
@@ -2432,17 +2488,35 @@ export default function Mockup() {
 
   function usunKrew(g, xi) {
     const x = (g.poz || [])[xi];
-    if (!x || !window.confirm(`Usunąć „${x.n}" z pobrania ${g.data}?`)) return;
+    if (!x) return;
+    const gi = KREW.findIndex((gr) => gr.data === g.data);
     setKrew((prev) => prev
       .map((gr) => (gr.data !== g.data ? gr : { ...gr, poz: (gr.poz || []).filter((_, j) => j !== xi) }))
       .filter((gr) => (gr.poz || []).length));
+    /* Pobranie znika razem z ostatnim wynikiem, więc cofnięcie zakłada je
+       z powrotem w tym samym miejscu albo wkłada wynik na jego pozycję. */
+    setCofnij({ tekst: `Usunięto „${x.n}" z pobrania ${g.data}.`, id: Date.now(), przywroc: () =>
+      setKrew((prev) => {
+        const i = prev.findIndex((gr) => gr.data === g.data);
+        if (i < 0) {
+          const k = [...prev];
+          k.splice(Math.min(gi < 0 ? k.length : gi, k.length), 0, { ...g, poz: [x] });
+          return k;
+        }
+        return prev.map((gr, j) => {
+          if (j !== i || (gr.poz || []).includes(x)) return gr;
+          const poz = [...(gr.poz || [])];
+          poz.splice(Math.min(xi, poz.length), 0, x);
+          return { ...gr, poz };
+        });
+      }) });
   }
 
   function wgrajRaport(plik) {
     const r = new FileReader();
     r.onload = () => {
       const rp = czytajRaport(r.result);
-      if (!rp.pozycje.length) { window.alert("Nie znalazłem w pliku tabeli z wynikami."); return; }
+      if (!rp.pozycje.length) { blad("raport", "Nie znalazłem w pliku tabeli z wynikami."); return; }
       setRaportPodglad(rp);
     };
     r.readAsText(plik);
@@ -2519,7 +2593,7 @@ export default function Mockup() {
   }
 
   function zapiszEv() {
-    if (!ev.n.trim()) { window.alert("Wydarzenie bez nazwy nic nie powie."); return; }
+    if (!ev.n.trim()) { blad("ev", "Wydarzenie bez nazwy nic nie powie.", "pole-ev-n"); return; }
     setWydarzenia((prev) => ev.id
       ? prev.map((w) => (w.id === ev.id ? { ...ev } : w))
       : [...prev, { ...ev, id: Date.now(), zrobione: false }]);
@@ -2527,8 +2601,9 @@ export default function Mockup() {
   }
 
   function usunEv(id) {
-    if (!window.confirm("Usunąć to wydarzenie?")) return;
-    setWydarzenia((prev) => prev.filter((w) => w.id !== id));
+    const w0 = WYDARZENIA.find((w) => w.id === id);
+    usunZCofnij(w0 && w0.n ? `Usunięto „${w0.n}".` : "Usunięto wydarzenie.", WYDARZENIA, setWydarzenia,
+      (w) => w.id === id);
     setEv(null);
   }
 
@@ -2563,8 +2638,7 @@ export default function Mockup() {
   }
 
   function usunWymiar(data) {
-    if (!window.confirm(`Usunąć pomiar z ${data}?`)) return;
-    setWymiary((prev) => prev.filter((w) => w.date !== data));
+    usunZCofnij(`Usunięto pomiar z ${data}.`, WYMIARY, setWymiary, (w) => w.date === data);
   }
 
   /* Wczytanie do formularza; zapis nadpisze wpis o tej samej dacie. */
@@ -2580,7 +2654,7 @@ export default function Mockup() {
      z poprzedniego pomiaru — inaczej brak jednej pozycji zerowałby wiersz. */
   function zapiszWymiar() {
     const m = liczba(wymForm.masa);
-    if (m == null) { window.alert("Bez wagi przy pomiarze wiersz nie ma odniesienia."); return; }
+    if (m == null) { blad("wymiary", "Bez wagi przy pomiarze wiersz nie ma odniesienia.", "pole-wym-masa"); return; }
     const rek = { id: Date.now(), date: wymForm.date, masa: m };
     MIARY.forEach(([k]) => {
       const v = liczba(wymForm[k]);
@@ -3132,10 +3206,12 @@ ZASADY:
   /* Po zmianie zakładki treść zaczyna się od góry. Bez tego nowy ekran
      otwierał się w połowie, na wysokości, na której był poprzedni. Nagłówka
      nie przewijamy na nowo, jeśli ktoś jest już niżej — tylko do początku
-     treści. Otwarty edytor wydarzenia przewija się sam. */
+     treści. Otwarty edytor wydarzenia przewija się sam. Błąd formularza
+     z poprzedniego ekranu znika, żeby nie wrócił przy następnym wejściu. */
   const poczatekRef = useRef(null);
   const pierwszaZakladka = useRef(true);
   useEffect(() => {
+    czyscBledy();
     if (pierwszaZakladka.current) { pierwszaZakladka.current = false; return; }
     const el = poczatekRef.current;
     if (!el || evRef.current) return;
@@ -3257,7 +3333,7 @@ ZASADY:
   }
 
   return (
-    <div className={"rej" + (dark ? " dark" : "")}>
+    <div className={"rej" + (dark ? " dark" : "")} onInput={czyscBledy}>
       <style>{CSS}</style>
 
       {zdalneNowsze && (
@@ -3285,7 +3361,7 @@ ZASADY:
               : zgodne ? (sync.kiedy ? ` · github ${godzinaZ(sync.kiedy)}` : " · wysyła sama")
               : " · automat wstrzymany")}
         </span>
-        <button className="themebtn" onClick={() => setDark(!dark)}>
+        <button className="themebtn" onClick={przelaczMotyw}>
           {dark ? "tryb jasny" : "tryb ciemny"}
         </button>
       </div>
@@ -3426,7 +3502,7 @@ ZASADY:
               </span>
             </label>
             <label>Waga (kg)
-              <input value={waga} onChange={(e) => setWaga(e.target.value)} />
+              <input id="pole-waga" value={waga} aria-invalid={zly("pole-waga")} onChange={(e) => setWaga(e.target.value)} />
               <span className="minirow">
                 <button className="mini" onClick={() => setOpenWaga(!openWaga)}>
                   {openWaga ? "zwiń panel" : `policz z ${dniOkresu} dni`}
@@ -3656,6 +3732,7 @@ ZASADY:
           <div className="actions">
             <button className="primary" onClick={zapiszTydzien}>Zapisz tydzień</button>
             {stage !== "form" && <span className="ready">Zapisano</span>}
+            <BladPola b={bledy.tydzien} />
           </div>
 
           {stage !== "form" && (
@@ -3771,8 +3848,8 @@ ZASADY:
                   <em>{a.czemu}</em>
                 </span>
                 <span className="ag-when">{a.kiedy}</span>
-                <button className="ag-check" title="Odhacz jako zrobione"
-                        onClick={() => odhaczEv(a.id, true)}>✓</button>
+                <button className="ag-check" title="Odhacz jako zrobione" aria-label={"Odhacz: " + a.co}
+                        onClick={() => odhaczEv(a.id, true)}><Ikona n="check" r={16} /></button>
               </li>
             ))}
           </ul>
@@ -3960,7 +4037,7 @@ ZASADY:
             <h4 className="ust-h">Wygląd</h4>
             <p className="note">Ustawienie trzymane osobno na każdym urządzeniu — telefon i komputer mogą chodzić w różnych trybach.</p>
             <div className="imp-akcje">
-              <button className="ghost" onClick={() => setDark(!dark)}>
+              <button className="ghost" onClick={przelaczMotyw}>
                 {dark ? "Przełącz na jasny" : "Przełącz na ciemny"}</button>
             </div>
           </div>
@@ -4449,6 +4526,7 @@ ZASADY:
                        onChange={(e) => e.target.files[0] && wgrajRaport(e.target.files[0])} />
               </label>
               <span className="tiny-note">Raport przygotowany w czacie z PDF-a. Import pokazuje podgląd przed zapisem.</span>
+              <BladPola b={bledy.raport} />
             </div>
           )}
 
@@ -4483,12 +4561,13 @@ ZASADY:
                   onChange={(e) => setTestForm({ ...testForm, masa: e.target.value })} /></label>
                 <label>Plank<input value={testForm.plank} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, plank: e.target.value })} /></label>
-                <label>Pull-ups<input value={testForm.pull} inputMode="numeric"
+                <label>Pull-ups<input id="pole-test-pull" value={testForm.pull} inputMode="numeric" aria-invalid={zly("pole-test-pull")}
                   onChange={(e) => setTestForm({ ...testForm, pull: e.target.value })} /></label>
                 <label>Dipy<input value={testForm.dip} inputMode="numeric"
                   onChange={(e) => setTestForm({ ...testForm, dip: e.target.value })} /></label>
               </div>
               <button className="primary" onClick={zapiszTest}>Zapisz test</button>
+              <BladPola b={bledy.test} />
 
               {TESTY.length === 0 ? (
                 <div className="pempty"><p>Brak testów. Pierwszy wynik wpisz powyżej.</p></div>
@@ -4540,13 +4619,14 @@ ZASADY:
               <div className="prow">
                 <label>Data<input type="date" value={cardioForm.date}
                   onChange={(e) => setCardioForm({ ...cardioForm, date: e.target.value })} /></label>
-                <label>Basen 400 m<input value={cardioForm.plyw} placeholder="9:12"
+                <label>Basen 400 m<input id="pole-cardio-plyw" value={cardioForm.plyw} placeholder="9:12" aria-invalid={zly("pole-cardio-plyw")}
                   onChange={(e) => setCardioForm({ ...cardioForm, plyw: e.target.value })} /></label>
                 <label>Masa (kg)<input value={cardioForm.masa} inputMode="decimal"
                   placeholder={pusty ? "" : num(latest.weight)}
                   onChange={(e) => setCardioForm({ ...cardioForm, masa: e.target.value })} /></label>
               </div>
               <button className="primary" onClick={zapiszCardio}>Zapisz test</button>
+              <BladPola b={bledy.cardio} />
 
               {CARDIO.length === 0 ? (
                 <div className="pempty"><p>Brak pomiarów. Pierwszy czas wpisz powyżej.</p></div>
@@ -4595,7 +4675,7 @@ ZASADY:
                 <label>Data<input type="date" value={wymForm.date}
                   onChange={(e) => setWymForm({ ...wymForm, date: e.target.value })} /></label>
                 <label>Waga (kg)
-                  <input value={wymForm.masa} inputMode="decimal"
+                  <input id="pole-wym-masa" value={wymForm.masa} inputMode="decimal" aria-invalid={zly("pole-wym-masa")}
                     placeholder={ostWym ? num(ostWym.masa) : ""}
                     onChange={(e) => setWymForm({ ...wymForm, masa: e.target.value })} /></label>
                 {MIARY.map(([k, l]) => (
@@ -4606,6 +4686,7 @@ ZASADY:
                 ))}
               </div>
               <button className="primary" onClick={zapiszWymiar}>Zapisz pomiar</button>
+              <BladPola b={bledy.wymiary} />
               <div className="tblwrap">
                 <table className="tbl">
                   <thead><tr><th>Data</th><th>Waga</th>{MIARY.map(([k,l]) => <th key={k}>{l}</th>)}<th /></tr></thead>
@@ -4647,12 +4728,13 @@ ZASADY:
                   onChange={(e) => setSpiroForm({ ...spiroForm, date: e.target.value })} /></label>
                 {SPIRO_PARAMY.map(([k, n, j]) => (
                   <label key={k}>{n} ({j})
-                    <input value={spiroForm[k]} inputMode="decimal"
+                    <input id={"pole-spiro-" + k} value={spiroForm[k]} inputMode="decimal" aria-invalid={zly("pole-spiro-" + k)}
                       onChange={(e) => setSpiroForm({ ...spiroForm, [k]: e.target.value })} /></label>
                 ))}
               </div>
               <div className="imp-akcje">
                 <button className="primary" onClick={zapiszSpiro}>{spiroEdycja ? "Zapisz zmiany" : "Zapisz wynik"}</button>
+                <BladPola b={bledy.spiro} />
                 {spiroEdycja && (
                   <button className="ghost" onClick={() => { setSpiroForm(spiroFormPusty()); setSpiroEdycja(null); }}>Anuluj</button>
                 )}
@@ -4722,9 +4804,9 @@ ZASADY:
               <div className="prow">
                 <label>Data pobrania<input type="date" value={krewForm.date}
                   onChange={(e) => setKrewForm({ ...krewForm, date: e.target.value })} /></label>
-                <label>Badanie<input value={krewForm.n} placeholder="Witamina D (25-OH)"
+                <label>Badanie<input id="pole-krew-n" value={krewForm.n} placeholder="Witamina D (25-OH)" aria-invalid={zly("pole-krew-n")}
                   onChange={(e) => setKrewForm({ ...krewForm, n: e.target.value })} /></label>
-                <label>Wynik<input value={krewForm.w} placeholder="28,4"
+                <label>Wynik<input id="pole-krew-w" value={krewForm.w} placeholder="28,4" aria-invalid={zly("pole-krew-w")}
                   onChange={(e) => setKrewForm({ ...krewForm, w: e.target.value })} /></label>
                 <label>Jednostka<input value={krewForm.j} placeholder="ng/mL"
                   onChange={(e) => setKrewForm({ ...krewForm, j: e.target.value })} /></label>
@@ -4735,6 +4817,7 @@ ZASADY:
               </div>
               <div className="imp-akcje">
                 <button className="primary" onClick={zapiszKrew}>{krewEdycja ? "Zapisz zmianę" : "Dodaj wynik"}</button>
+                <BladPola b={bledy.krew} />
                 {krewEdycja && (
                   <button className="ghost" onClick={() => {
                     setKrewForm((x) => ({ ...x, n: "", w: "", j: "", ref: "", uwaga: "" })); setKrewEdycja(null);
@@ -4881,12 +4964,13 @@ ZASADY:
                   onChange={(e) => setSkladForm({ ...skladForm, date: e.target.value })} /></label>
                 <label>Waga (kg)<input value={skladForm.weight} inputMode="decimal"
                   onChange={(e) => setSkladForm({ ...skladForm, weight: e.target.value })} /></label>
-                <label>Tłuszcz (%)<input value={skladForm.fat} inputMode="decimal"
+                <label>Tłuszcz (%)<input id="pole-sklad-fat" value={skladForm.fat} inputMode="decimal" aria-invalid={zly("pole-sklad-fat")}
                   onChange={(e) => setSkladForm({ ...skladForm, fat: e.target.value })} /></label>
-                <label>LBM (kg)<input value={skladForm.lean} inputMode="decimal"
+                <label>LBM (kg)<input id="pole-sklad-lean" value={skladForm.lean} inputMode="decimal" aria-invalid={zly("pole-sklad-lean")}
                   onChange={(e) => setSkladForm({ ...skladForm, lean: e.target.value })} /></label>
               </div>
               <button className="primary" onClick={zapiszSklad}>Zapisz pomiar</button>
+              <BladPola b={bledy.sklad} />
               {SCANS.length === 0 ? (
                 <div className="pempty"><p>Brak pomiarów. Wpisz ręcznie albo wgraj raport <code>.md</code> z nagłówkiem <code>typ: dexa</code>.</p></div>
               ) : (
@@ -4919,12 +5003,12 @@ ZASADY:
       {tab === "kalendarz" && (
         <section className="panel">
           <div className="kalnav">
-            <button className="navbtn" onClick={() => setMies(przesun(mies, -1))}>‹</button>
+            <button className="navbtn" aria-label="Poprzedni miesiąc" onClick={() => setMies(przesun(mies, -1))}><Ikona n="wlewo" r={18} /></button>
             <span className="kaltyt">
               <b>{MIESIACE[mies.m]}</b> {mies.r}
               <em>{phaseAt(`${mies.r}-${String(mies.m + 1).padStart(2, "0")}-15`).label}</em>
             </span>
-            <button className="navbtn" onClick={() => setMies(przesun(mies, 1))}>›</button>
+            <button className="navbtn" aria-label="Następny miesiąc" onClick={() => setMies(przesun(mies, 1))}><Ikona n="wprawo" r={18} /></button>
           </div>
 
           <div className="kalhead">
@@ -4978,13 +5062,14 @@ ZASADY:
                   </select></label>
               </div>
               <label className="evnazwa">Nazwa
-                <input value={ev.n} placeholder="Co to jest"
+                <input id="pole-ev-n" value={ev.n} placeholder="Co to jest" aria-invalid={zly("pole-ev-n")}
                        onChange={(e) => setEv({ ...ev, n: e.target.value })} /></label>
               <label className="evnazwa">Po co <em>zobaczysz to za pół roku, gdy sama nazwa nic nie powie</em>
                 <input value={ev.po || ""} placeholder="np. baseline przed deficytem"
                        onChange={(e) => setEv({ ...ev, po: e.target.value })} /></label>
               <div className="imp-akcje">
                 <button className="primary" onClick={zapiszEv}>Zapisz</button>
+                <BladPola b={bledy.ev} />
                 {ev.id && (
                   <button className="ghost" onClick={() => odhaczEv(ev.id)}>
                     {ev.zrobione ? "Cofnij odhaczenie" : "Odhacz jako zrobione"}
@@ -5161,8 +5246,9 @@ ZASADY:
                   </span>
                   <button className={"serce" + (x.ulubione ? " on" : "")}
                           title={x.ulubione ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
+                          aria-label="Ulubione" aria-pressed={!!x.ulubione}
                           onClick={() => zmienDanie(x.id, { ulubione: !x.ulubione })}>
-                    {x.ulubione ? "♥" : "♡"}
+                    <Ikona n="serce" r={20} />
                   </button>
                 </div>
                 <div className="dmacro">
@@ -5214,9 +5300,9 @@ ZASADY:
                   <div className="dopen">
                     <div className="dporcje">
                       <span className="cap">Porcje</span>
-                      <button className="mini" onClick={() => zmienPorcje(x, -1)}>−</button>
+                      <button className="mini" aria-label="Mniej porcji" onClick={() => zmienPorcje(x, -1)}>−</button>
                       <b>{x.porcje || "?"}</b>
-                      <button className="mini" onClick={() => zmienPorcje(x, 1)}>+</button>
+                      <button className="mini" aria-label="Więcej porcji" onClick={() => zmienPorcje(x, 1)}>+</button>
                       {x.porcjeBaza && x.porcje !== x.porcjeBaza && (
                         <em className="tiny-note">przeliczone z {x.porcjeBaza}</em>
                       )}
@@ -5261,6 +5347,17 @@ ZASADY:
         </section>
       )}
 
+
+      {/* Region ogłaszany przez czytnik ekranu stoi zawsze, zmienia się tylko treść —
+          nowo wstawiony region bywa przez czytniki pomijany. */}
+      <div className="toast-wrap" role="status" aria-live="polite">
+        {cofnij && (
+          <div className="toast" key={cofnij.id}>
+            <span>{cofnij.tekst}</span>
+            <button className="toast-btn" onClick={() => { cofnij.przywroc(); setCofnij(null); }}>Cofnij</button>
+          </div>
+        )}
+      </div>
 
       <footer className="foot">
         <span>
@@ -6505,6 +6602,41 @@ const CSS = `
   .head.kompakt .ledger .col{padding:10px 12px}
   .head.kompakt .ledger.cztery .big{font-size:24px}
 }
+
+/* ── błędy przy polach ───────────────────────────────────── */
+.pole-blad{flex-basis:100%;margin:8px 0 0;font-size:14px;color:var(--warn-tx);font-weight:500}
+.pole-blad::before{content:"";display:inline-block;width:6px;height:6px;margin:0 7px 2px 0;
+  border-radius:50%;background:var(--warn)}
+.rej input[aria-invalid="true"]{border-color:var(--warn)!important;box-shadow:inset 0 0 0 1px var(--warn)}
+
+/* ── cofnij ──────────────────────────────────────────────── */
+.toast-wrap{position:fixed;left:0;right:0;bottom:calc(20px + env(safe-area-inset-bottom));z-index:40;
+  display:flex;justify-content:center;pointer-events:none;padding:0 14px}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:14px;max-width:520px;
+  padding:8px 8px 8px 16px;border-radius:var(--r);background:var(--ink);color:var(--paper);
+  font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);animation:toast-in .18s ease-out}
+.toast span{flex:1}
+.toast-btn{min-height:40px;padding:0 14px;border:1px solid currentColor;border-radius:99px;
+  background:transparent;color:inherit;cursor:pointer;font-family:'IBM Plex Mono',monospace;
+  font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:600px){ .toast-wrap{bottom:calc(70px + env(safe-area-inset-bottom))} }
+
+/* ── ikony w przyciskach ─────────────────────────────────────
+   Znaki ♥ ♡ ✓ ‹ › wyglądały różnie zależnie od czcionki systemu (na części
+   telefonów serce było kolorowym emoji) — teraz są rysowane kreską. */
+.serce svg,.navbtn svg,.ag-check svg{display:block}
+.serce{display:inline-flex;align-items:center;justify-content:center}
+.serce.on svg{fill:currentColor}
+.navbtn,.ag-check{display:inline-flex;align-items:center;justify-content:center}
+
+/* ── stan wciśnięcia i wyłączenia ────────────────────────────
+   Stuknięcie daje natychmiastowy znak, że zadziałało; wyłączony przycisk
+   wygląda na wyłączony, nie tylko na blady. */
+:where(.rej button){transition:opacity .08s}
+.rej button:not(:disabled):active{opacity:.7}
+.rej button:disabled{cursor:not-allowed}
+.rej button.ghost:disabled,.rej button.mini:disabled{opacity:.45}
 
 /* ── wcięcia systemowe ───────────────────────────────────────
    Apka z ekranu startowego zajmuje cały ekran razem z notchem i paskiem

@@ -10,6 +10,36 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.51 — 25 października 2026
+
+**Błędy przy polach zamiast okienek.** Dziewięć formularzy (tydzień, sprawność,
+cardio, wymiary, skład ciała, spirometria, krew, wydarzenie, import raportu)
+zgłaszało brak danych systemowym okienkiem, które zasłaniało formularz
+i znikało razem z treścią. Teraz komunikat stoi pod przyciskiem zapisu,
+brakujące pole ma czerwoną obwódkę i dostaje kursor, a błąd znika przy
+pierwszym wpisanym znaku albo po zmianie zakładki.
+
+**„Cofnij" zamiast „Na pewno?".** Usunięcie tygodnia, testu, pomiaru, wyniku
+krwi, wydarzenia czy dania pytało za każdym razem o potwierdzenie, więc
+klikało się je odruchowo. Teraz usuwa od razu, a przez 8 sekund na dole
+ekranu jest „Cofnij" — pozycja wraca na swoje miejsce, tydzień razem
+z komentarzem Ronniego, wynik krwi razem z pobraniem, jeśli był w nim
+ostatni. Potwierdzenia przy synchronizacji z GitHubem zostały, bo tam
+nadpisuje się całe dane.
+
+**Tryb ciemny jest zapamiętywany.** Przełącznik zmieniał motyw tylko do
+odświeżenia strony — wybór nie trafiał do ustawień i apka zawsze wstawała
+jasna. Teraz zapisuje się na urządzeniu.
+
+**Ikony rysowane kreską.** Serce ulubionych, haczyk „odhacz" i strzałki
+miesięcy były znakami z czcionki — na części telefonów serce wychodziło
+kolorowym emoji. Teraz to ikony w kolorze tekstu, a przyciski bez napisu
+mają nazwę dla czytnika ekranu.
+
+**Reakcja na stuknięcie.** Przycisk przygasa w chwili wciśnięcia, więc widać,
+że stuknięcie zadziałało; wyłączone przyciski mają wygląd i kursor
+wyłączonych.
+
 ## v1.50 — 25 października 2026
 
 **Dolny pasek sekcji na telefonie.** Zakładki siedziały pod nagłówkiem, w połowie
