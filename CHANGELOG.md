@@ -10,6 +10,31 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.50 — 25 października 2026
+
+**Dolny pasek sekcji na telefonie.** Zakładki siedziały pod nagłówkiem, w połowie
+strony — po przewinięciu trzeba było wracać na górę, żeby zmienić sekcję.
+Teraz na telefonie pięć sekcji jest na stałe na dole ekranu, z ikoną nad
+podpisem; aktywna ma złotą kreskę. Na komputerze zakładki zostają na górze
+jak dotąd.
+
+**„Wstecz" cofa o ekran.** Zakładka jest w adresie (`#/kalendarz`,
+`#/pomiary/krew`). Systemowy przycisk wstecz wraca do poprzedniej zakładki,
+zamiast wychodzić z apki, a odświeżenie zostawia tam, gdzie się było.
+Po zmianie zakładki treść zaczyna się od góry, a nie na wysokości, na której
+był poprzedni ekran.
+
+**Wpis tygodnia bliżej.** Na telefonie formularz zaczynał się dopiero na
+drugim ekranie (857 px), a „Zapisz tydzień" był ~1500 px niżej. Przy wpisie
+nagłówek pokazuje same cztery liczby — bez pierścieni, paska i podpisów —
+a lista „Nadchodzące" stoi pod formularzem. Formularz zaczyna się teraz na
+pierwszym ekranie, a „Zapisz tydzień" jest przyklejony nad dolnym paskiem,
+dopóki formularz nie skończy się wyżej.
+
+**Ikona kalendarza w trybie ciemnym.** Natywne kontrolki (ikona w polu daty,
+listy rozwijane) rysowały się na czarno na ciemnym tle — teraz w ciemnym
+motywie są jasne.
+
 ## v1.49 — 25 października 2026
 
 **Czytelność na telefonie.** Najmniejsze napisy miały 7,5 px, a większość

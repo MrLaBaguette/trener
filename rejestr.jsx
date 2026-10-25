@@ -737,7 +737,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.49";
+const WERSJA_APKI = "1.50";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1131,6 +1131,39 @@ const SEKCJE = [
   ]},
 ];
 
+const POMIARY_POD = [["wymiary", "Wymiary"], ["sprawnosc", "Sprawność"], ["cardio", "Cardio"],
+  ["spiro", "Spirometria"], ["krew", "Krew"], ["sklad", "Skład ciała"]];
+
+/* ── Adres w pasku ──────────────────────────────────────────
+   Zakładka siedzi w adresie (#/kalendarz, #/pomiary/krew). Przycisk „wstecz"
+   wraca do poprzedniego ekranu zamiast zamykać apkę, a odświeżenie strony
+   zostawia tam, gdzie się było. Nieznany adres nie psuje niczego — apka
+   otwiera się na wpisie, jak dotąd. */
+const ZAKLADKI = SEKCJE.flatMap((s) => s.pod.map((p) => p.k));
+function zAdresu() {
+  const [t, p] = window.location.hash.replace(/^#\/?/, "").split("/");
+  return {
+    tab: ZAKLADKI.includes(t) ? t : null,
+    pod: POMIARY_POD.some(([k]) => k === p) ? p : null,
+  };
+}
+const adresDla = (tab, pod) => "#/" + tab + (tab === "pomiary" ? "/" + pod : "");
+
+/* Ikony dolnego paska. Rysowane kreską w kolorze tekstu, więc same
+   przechodzą między trybem jasnym i ciemnym. Na komputerze ukryte —
+   tam zakładki zostają samym tekstem. */
+const IKONY = {
+  dziennik: <><path d="M6 3.5h10.5a2 2 0 0 1 2 2v15H8a2 2 0 0 1-2-2z" /><path d="M6 18.5a2 2 0 0 1 2-2h10.5" /><path d="M10 8h5" /></>,
+  plan: <><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M8 3v4M16 3v4M3.5 10h17" /><path d="M8 14h3" /></>,
+  kuchnia: <><path d="M6 3v6a2.5 2.5 0 0 0 5 0V3M8.5 3v5.5M8.5 11.5V21" /><path d="M17.5 21V3c-2 1.2-3 3.8-3 7.5V14h3" /></>,
+  staty: <><path d="M4 4v16h16" /><path d="M7.5 14.5l3.5-4 3 2.5 5-6" /></>,
+  system: <><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></>,
+};
+const Ikona = ({ n }) => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{IKONY[n]}</svg>
+);
+
 const AGENDA_HORYZONT = 30;
 /* Status cyklu wynika z dat, nie z wpisu w kodzie. Inaczej 1 września
    apka nadal pokazywałaby sierpniowy plan jako bieżący. */
@@ -1499,7 +1532,7 @@ export default function Mockup() {
   PLAN_KCAL = ustawienia.planKcal;
   TARGET = ustawienia.kamienie[ustawienia.kamienie.length - 1].weight;
 
-  const [tab, setTab] = useState("wpis");
+  const [tab, setTab] = useState(() => zAdresu().tab || "wpis");
   /* Pola formularza tygodniowego. W mockupie były narysowane na sztywno —
      tutaj muszą trzymać wartość, bo z nich powstaje rekord tygodnia. */
   const [sen, setSen] = useState(3);
@@ -1568,7 +1601,7 @@ export default function Mockup() {
   const [imp, setImp] = useState(null);
   const [impW, setImpW] = useState(null);
   const [impBlad, setImpBlad] = useState(null);
-  const [pod, setPod] = useState("wymiary");
+  const [pod, setPod] = useState(() => zAdresu().pod || "wymiary");
   /* Który test ma rozwinięte zmiany względem poprzedniego. Jeden naraz —
      rozwinięte wszystkie robiły z tabeli ścianę liczb. */
   const [openTest, setOpenTest] = useState(null);
@@ -3077,6 +3110,39 @@ ZASADY:
     const o = {}; series.forEach((e) => { o[e.date] = e; }); return o;
   }, [series]);
 
+  /* Każda zmiana zakładki to wpis w historii przeglądarki, więc „wstecz"
+     na telefonie cofa o ekran. Pierwsze wejście bez adresu, albo z adresem
+     nieznanym, tylko go poprawia — inaczej „wstecz" prowadziłby donikąd. */
+  useEffect(() => {
+    const cel = adresDla(tab, pod);
+    if (window.location.hash === cel) return;
+    if (zAdresu().tab) window.history.pushState(null, "", cel);
+    else window.history.replaceState(null, "", cel);
+  }, [tab, pod]);
+  useEffect(() => {
+    const wroc = () => {
+      const a = zAdresu();
+      if (a.tab) setTab(a.tab);
+      if (a.pod) setPod(a.pod);
+    };
+    window.addEventListener("popstate", wroc);
+    return () => window.removeEventListener("popstate", wroc);
+  }, []);
+
+  /* Po zmianie zakładki treść zaczyna się od góry. Bez tego nowy ekran
+     otwierał się w połowie, na wysokości, na której był poprzedni. Nagłówka
+     nie przewijamy na nowo, jeśli ktoś jest już niżej — tylko do początku
+     treści. Otwarty edytor wydarzenia przewija się sam. */
+  const poczatekRef = useRef(null);
+  const pierwszaZakladka = useRef(true);
+  useEffect(() => {
+    if (pierwszaZakladka.current) { pierwszaZakladka.current = false; return; }
+    const el = poczatekRef.current;
+    if (!el || evRef.current) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - 8;
+    if (window.scrollY > y) window.scrollTo({ top: y, behavior: plynnie() });
+  }, [tab, pod]);
+
   /* Wykres rysuje się w jednostkach równych pikselom ekranu. Przy stałym
      viewBoxie 720 telefon zmniejszał go do ~320 px i opisy osi miały 5 px. */
   const [szerWykresu, setSzerWykresu] = useState(720);
@@ -3224,7 +3290,7 @@ ZASADY:
         </button>
       </div>
 
-      <header className="head">
+      <header className={"head" + (tab === "wpis" ? " kompakt" : "")}>
         <div className="eyebrow">
           <span>Ronnie</span><span className="dot" />
           <span>tydzień {weekNo} z {tygodniLacznie}</span><span className="dot" />
@@ -3290,12 +3356,13 @@ ZASADY:
         </div>
       </header>
 
-      <nav className="tabs">
+      <div ref={poczatekRef} />
+      <nav className="tabs" aria-label="Sekcje">
         {SEKCJE.map((se) => {
           const akt = se.pod.some((x) => x.k === tab);
           return (
-            <button key={se.id} className={akt ? "tab on" : "tab"}
-                    onClick={() => setTab(se.pod[0].k)}>{se.n}</button>
+            <button key={se.id} className={akt ? "tab on" : "tab"} aria-current={akt ? "page" : undefined}
+                    onClick={() => setTab(se.pod[0].k)}><Ikona n={se.id} /><span>{se.n}</span></button>
           );
         })}
       </nav>
@@ -3304,9 +3371,9 @@ ZASADY:
         const se = SEKCJE.find((x) => x.pod.some((y) => y.k === tab));
         if (!se || se.pod.length < 2) return null;
         return (
-          <nav className="subnav">
+          <nav className="subnav" aria-label={se.n}>
             {se.pod.map((x) => (
-              <button key={x.k} className={tab === x.k ? "snav on" : "snav"}
+              <button key={x.k} className={tab === x.k ? "snav on" : "snav"} aria-current={tab === x.k ? "page" : undefined}
                       onClick={() => setTab(x.k)}>{x.l}</button>
             ))}
           </nav>
@@ -3314,34 +3381,6 @@ ZASADY:
       })()}
 
       {/* ── WPIS ── */}
-      {tab === "wpis" && (
-        <section className="panel agenda">
-          <div className="bal-head">
-            <span>Nadchodzące</span>
-            <span className="tiny-note">z kalendarza projektu</span>
-          </div>
-          <ul className="ag-list">
-            {agenda.length === 0 && (
-              <li className="ag wkrotce"><span className="ag-dot" />
-                <span className="ag-body"><b>Nic w najbliższych {AGENDA_HORYZONT} dniach</b>
-                <em>terminy dodajesz w zakładce Kalendarz</em></span></li>
-            )}
-            {agenda.map((a) => (
-              <li key={a.id} className={"ag " + a.stan}>
-                <span className={"ag-dot e-" + a.zrodlo.t} title={a.zrodlo.t} />
-                <span className="ag-body" onClick={() => { setTab("kalendarz"); otworzEv(a.zrodlo); }}>
-                  <b>{a.co}</b>
-                  <em>{a.czemu}</em>
-                </span>
-                <span className="ag-when">{a.kiedy}</span>
-                <button className="ag-check" title="Odhacz jako zrobione"
-                        onClick={() => odhaczEv(a.id, true)}>✓</button>
-              </li>
-            ))}
-          </ul>
-          <p className="ag-foot">Widok obejmuje {AGENDA_HORYZONT} dni. Dalsze terminy w zakładce Kalendarz.</p>
-        </section>
-      )}
 
       {tab === "wpis" && (
         <section className="panel form">
@@ -3707,6 +3746,37 @@ ZASADY:
               )}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Agenda pod formularzem — wpis jest tu głównym zadaniem, a na telefonie
+          lista terminów spychała formularz poza pierwszy ekran. */}
+      {tab === "wpis" && (
+        <section className="panel agenda">
+          <div className="bal-head">
+            <span>Nadchodzące</span>
+            <span className="tiny-note">z kalendarza projektu</span>
+          </div>
+          <ul className="ag-list">
+            {agenda.length === 0 && (
+              <li className="ag wkrotce"><span className="ag-dot" />
+                <span className="ag-body"><b>Nic w najbliższych {AGENDA_HORYZONT} dniach</b>
+                <em>terminy dodajesz w zakładce Kalendarz</em></span></li>
+            )}
+            {agenda.map((a) => (
+              <li key={a.id} className={"ag " + a.stan}>
+                <span className={"ag-dot e-" + a.zrodlo.t} title={a.zrodlo.t} />
+                <span className="ag-body" onClick={() => { setTab("kalendarz"); otworzEv(a.zrodlo); }}>
+                  <b>{a.co}</b>
+                  <em>{a.czemu}</em>
+                </span>
+                <span className="ag-when">{a.kiedy}</span>
+                <button className="ag-check" title="Odhacz jako zrobione"
+                        onClick={() => odhaczEv(a.id, true)}>✓</button>
+              </li>
+            ))}
+          </ul>
+          <p className="ag-foot">Widok obejmuje {AGENDA_HORYZONT} dni. Dalsze terminy w zakładce Kalendarz.</p>
         </section>
       )}
 
@@ -4366,9 +4436,9 @@ ZASADY:
       {tab === "pomiary" && (
         <section className="panel">
           <nav className="subtabs">
-            {[["wymiary","Wymiary"],["sprawnosc","Sprawność"],["cardio","Cardio"],
-              ["spiro","Spirometria"],["krew","Krew"],["sklad","Skład ciała"]].map(([k,l]) => (
-              <button key={k} className={pod===k?"subtab on":"subtab"} onClick={()=>setPod(k)}>{l}</button>
+            {POMIARY_POD.map(([k,l]) => (
+              <button key={k} className={pod===k?"subtab on":"subtab"} aria-current={pod===k ? "page" : undefined}
+                      onClick={()=>setPod(k)}>{l}</button>
             ))}
           </nav>
 
@@ -5578,6 +5648,9 @@ const CSS = `
   --band-0:#171D20;--band-1:#141A1D;--band-2:#1B2225;
   --panel:#171D20;--hair:#242E31;--tint:#1B2225;--hover:#1E2629;--open:#1B2225;
   --plan-tx:var(--plan);--actual-tx:var(--actual);--warn-tx:#E08699}
+/* Natywne kontrolki (ikona kalendarza w polu daty, listy, paski przewijania)
+   rysowały się w trybie ciemnym na czarno — na ciemnym tle niewidoczne. */
+.rej.dark{color-scheme:dark}
 .rej *{box-sizing:border-box}
 .rej *{-webkit-tap-highlight-color:transparent}
 /* Obrys fokusu był wyłączony globalnie, więc z klawiatury nie było widać,
@@ -6399,6 +6472,40 @@ const CSS = `
   .minirow{gap:7px 16px}
 }
 
+/* ── dolny pasek sekcji ──────────────────────────────────────
+   Na komputerze zakładki zostają nad treścią, samym tekstem. Na telefonie
+   pasek siedzi na dole ekranu, w zasięgu kciuka, z ikoną nad podpisem —
+   wcześniej był w połowie strony i po przewinięciu trzeba było wracać
+   na górę, żeby zmienić sekcję. */
+.tab svg{display:none}
+@media(max-width:600px){
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;gap:0;border:0;border-radius:0;
+    border-top:1px solid var(--rule);background:var(--paper);overflow:visible;
+    padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .rej .tab,.rej.dark .tab{position:relative;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;min-height:58px;padding:7px 2px 6px;background:transparent;
+    color:var(--ink-2);font-family:'IBM Plex Sans',sans-serif;font-size:12px;letter-spacing:0;
+    text-transform:none;border:0}
+  .tab svg{display:block}
+  .rej .tab.on,.rej.dark .tab.on{background:transparent;color:var(--ink);font-weight:600}
+  .tab.on svg{stroke-width:2.2}
+  .tab.on::before{content:"";position:absolute;top:-1px;left:24%;right:24%;height:2px;
+    border-radius:0 0 2px 2px;background:var(--actual)}
+  .subnav{margin-top:18px}
+  .rej{padding-bottom:84px}
+
+  /* Zapis tygodnia zostaje pod kciukiem, dopóki formularz jest niżej niż
+     ekran — wcześniej przycisk był ~1500 px pod pierwszym polem. */
+  .form .actions{position:sticky;bottom:calc(58px + env(safe-area-inset-bottom));z-index:10;
+    margin:6px -16px 0;padding:12px 16px;background:var(--panel);border-top:1px solid var(--rule)}
+
+  /* Przy wpisie nagłówek zostaje bez pierścieni, paska i podpisów — same
+     cztery liczby. Pełny widok jest w pozostałych zakładkach. */
+  .head.kompakt .progress,.head.kompakt .ledger .sub{display:none}
+  .head.kompakt .ledger .col{padding:10px 12px}
+  .head.kompakt .ledger.cztery .big{font-size:24px}
+}
+
 /* ── wcięcia systemowe ───────────────────────────────────────
    Apka z ekranu startowego zajmuje cały ekran razem z notchem i paskiem
    gestów. Treść odsuwa się od nich, żeby nic nie wchodziło pod systemowe UI. */
@@ -6407,7 +6514,7 @@ const CSS = `
     padding-top:max(22px,env(safe-area-inset-top));padding-bottom:max(22px,env(safe-area-inset-bottom))}
   @media(max-width:600px){
     .rej{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));
-      padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}
+      padding-top:max(14px,env(safe-area-inset-top));padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   }
 }
 
