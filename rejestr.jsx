@@ -183,22 +183,121 @@ KONTEKST ZAWODNIKA
 25 lipca 2027. DEXA 10.06.2026: 25,7% tłuszczu, 71,3 kg masy beztłuszczowej.
 FFMI ok. 20,8 — mięśnie są zbudowane, zadanie to ich odsłonięcie i obrona.
 
-Dziecko urodzone w czerwcu 2026. Sen 5–6 h, przerywany, bez drzemek. To jest
-zmienna sterująca całym planem: przy tym samym deficycie restrykcja snu
-przesuwa skład ubytku w stronę tkanki beztłuszczowej.
+Dziecko urodzone w czerwcu 2026. Nadal nie przesypia nocy, ale on od
+listopada śpi 6–8 h (wcześniej 5–6 h). Sen jest zmienną sterującą całym
+planem: przy tym samym deficycie restrykcja snu przesuwa skład ubytku
+w stronę tkanki beztłuszczowej. Listopadowa kontrola snu jest zamknięta.
 
 Astma, pojemność płuc obniżona o ok. 30%, FEV1 70% normy bez leków.
 Tętno NIE jest u niego miarodajnym wskaźnikiem intensywności — sterowanie
-testem mowy. Basen tolerowany najlepiej i jest głównym środkiem kondycyjnym.
-Boks to najbardziej ryzykowna pozycja w planie.
+testem mowy. Głównym środkiem kondycyjnym jest orbitrek: zero logistyki,
+zero ryzyka przeziębienia w szatni, przyjazny dla kostki. Basen jest
+opcjonalny, kalisteniki jako osobnego wyjścia nie ma. Boks nie jest
+w planie; jeśli pojawia się jako dodatek, to najbardziej ryzykowna aktywność.
 
 Nawykowe zwichnięcie stawu skokowego. Okresowy ból dołu pleców i łopatki,
 źródło głównie nerwowe plus noszenie dziecka; protokół to dwa dni przerwy
 i fizjoterapeuta. Przedramiona są limiterem w podciąganiu — plecy w paskach.
 
-Cykl 1 (wrzesień–październik): 4 wyjścia — 2 × FBW + basen + kalistenika
-albo boks. Zero serii do upadku na bojach. Po zarwanej nocy sesja zostaje,
-schodzi jedna seria z każdego ćwiczenia — nie przełamujemy się.
+STAN PROJEKTU
+Cykl 1 (wrzesień–październik) zamknięty przeglądem 1.11. Na papierze
+2 × FBW + basen + kalistenika, w praktyce 3 × FBW + marsz: basen tylko we
+wrześniu, kalistenika ani razu. Cykl 2 (PPL) NIE wystartował i nie jest
+bieżącym planem. Do końca listopada, opcjonalnie do świąt, obowiązuje
+cykl 1b — przedłużenie FBW. Przejście na split następuje w styczniu,
+razem z blokiem ciężkim.
+
+Test sprawnościowy #2 (1.11): plank 2:00, podciągnięcia 12, dipy 20.
+Baseline 5.09: plank 1:30, podciągnięcia 8, dipy 18.
+
+PLAN — CYKL 1b, OD 2 LISTOPADA 2026
+3 sesje w tygodniu, czasem 4: jedna w tygodniu, dwie w weekend. Rotacja
+A → B → C → A, bez przypisania do dni. Czwarte wyjście, jeśli jest, to
+kolejna sesja z kolejki albo basen. Każda sesja ok. 1,5 h: orbitrek 15 min
+(rozgrzewka, tempo swobodne), trening 60 min (w tym 7 min mobilności na
+start), orbitrek 15 min (kondycja, test mowy — ma być w stanie powiedzieć
+krótkie zdanie, nie dłuższe). Marsz i kroki nie liczą się jako wyjście,
+jadą codziennie. Dodatkowa aktywność ponad plan (squash, boks, basen jako
+dodatek) to plus 300–400 kcal do jedzenia tego dnia; deficyt ma zostać ten sam.
+
+Mobilność po pierwszym orbitreku, zalecenie fizjo. Blok wspólny: otwieranie
+książki 8 na stronę, ślizgi ramion po ścianie 10, band pull-apart 15,
+kot-wielbłąd 8. Do tego w A otwieranie bioder w wykroku 5 na stronę, w B
+most biodrowy 10, w C zwis bierny 20 s.
+
+FBW A: przysiad (sztanga lub goblet) 3 × 6–10, RIR 2; wyciskanie hantli
+na ławce płaskiej 3 × 8–12, RIR 2; wiosłowanie jednorącz lub na maszynie
+(paski) 3 × 8–12, RIR 2; OHP lub Hammer iso-lateral shoulder press
+3 × 8–12, RIR 2; farmer walk 3 × 40 m bez pasków; allahy 3 × 8–12; wznosy
+bokiem na wyciągu klaster 15-8-5; deadhang 2 × 30 s (przy reakcji łopatki
+nogi na podłodze).
+FBW B: wyprosty tułowia 45° z obciążeniem lub hip thrust 3 × 8–12, RIR 2;
+podciąganie nachwytem (paski, magnezja) 4 × 6–10, RIR 2; wyciskanie hantli
+na skosie 3 × 8–12, RIR 2; face pull 3 × 12–15, RIR 2; unoszenie kolan
+w zwisie 3 × 8–12; modlitewnik klaster 15-8-5.
+FBW C, sesja kalisteniczna: podciąganie podchwytem (paski, magnezja)
+3 × 6–10, RIR 2; dipy 3 × 8–15, RIR 2; wykroki chodzone z hantlami
+3 × 8–12 na nogę, RIR 2; Pallof press na wyciągu 3 × 10–12 na stronę;
+hollow hold 3 × 20–30 s; wznosy bokiem na wyciągu klaster 15-8-5;
+Jefferson curl 2 × 8–10, lekko.
+
+Zasady cyklu:
+- Progresja podwójna: ciężar stoi, dopóki nie trafi górnej granicy zakresu
+  we wszystkich seriach. Dopiero wtedy dokłada.
+- Podciąganie i dipy: po komplecie w górnej granicy (4 × 10 nachwytem,
+  3 × 10 podchwytem, 3 × 15 dipów) wchodzi pas z obciążeniem, +2,5 kg,
+  a zakres wraca do dolnej granicy.
+- RIR 2: kończy, gdy zrobiłby jeszcze dwa i ani jednego więcej.
+- Zero serii do upadku na bojach do końca roku. Wyjątek: trzecia część
+  klastra na izolacji.
+- Klaster 15-8-5: sztywne liczby, 10 s przerwy między częściami, ten sam
+  ciężar. Ciężar w górę po komplecie przy zachowanych przerwach.
+- Po zarwanej nocy sesja zostaje, schodzi jedna seria z każdego ćwiczenia —
+  nie przełamujemy się.
+- Bilans tygodnia: klatka 9 serii, plecy 10, nogi 9. 10–12 serii na partię
+  to sufit, nie cel.
+- Spadek na ostatniej serii o więcej niż 2–3 powtórzenia poniżej pierwszej
+  oznacza za duży ciężar, nie za dużą objętość.
+- Przerwy na bojach 2–3 minuty.
+- Sprzęt: paski na podciąganie i wiosłowanie, magnezja przy każdym
+  podciąganiu, pas z obciążeniem od trafienia górnej granicy, Ventolin
+  w torbie na każdą sesję.
+
+Decyzje planu, których nie podważasz bez przeglądu cyklu:
+- FBW zamiast PPL. Przy FBW opuszczona sesja kosztuje trochę objętości, przy
+  PPL zabiera całej grupie mięśniowej tydzień. Dzień pull to też najgorsza
+  dawka dla gojącej się łopatki.
+- Podciąganie w zakresie 6–10 przy RIR 2, nie „maks−1". Prawdziwy maks
+  mierzy test.
+- RDL nadal poza planem. Wyprosty 45° z +20 kg to zawias biodrowy bez
+  obciążenia osiowego i bez trzymania ciężaru w dłoniach, co przy łopatce
+  ma znaczenie. RDL to zadanie na pierwsze tygodnie bloku ciężkiego. Hip
+  thrust zostaje zamiennikiem na dni, kiedy plecy protestują.
+- Jefferson curl w C, nie w B — lędźwie dostają dwa lżejsze bodźce
+  w tygodniu zamiast jednego skumulowanego.
+- Pallof press zamiast klasycznych skosów: antyrotacja. Skręty z obciążeniem
+  przy okresowym bólu pleców to zła wymiana.
+- Hollow hold to miesiąc nauki pozycji przed decyzją o podmianie planku
+  w teście #3. Standard: lędźwie dociśnięte do podłoża, koniec serii, gdy
+  zaczynają się odklejać. Jeśli proste nogi są za trudne — kolana ugięte.
+- Orbitrek zamiast basenu. Basen przygasł z powodów logistycznych
+  i jesiennego ryzyka przeziębienia — to realne ograniczenie, nie brak
+  dyscypliny.
+
+TEMPO
+Deficyt 0,40 kg/tydzień — jedna wartość, obowiązuje w całym cyklu 1b.
+Sen 6–8 h jest dźwignią, która pozwala nie schodzić z tempa. Kalorie
+ustala dietetyk.
+
+BADANIA I TERMINY
+DEXA w grudniu to ostatnia próba tej metody. Warunki jak dotąd: ten sam
+ośrodek i ten sam aparat, popołudnie. NIE „rano na czczo".
+- koniec listopada: przegląd — FBW do świąt czy zmiana
+- 18.12: DEXA #3
+- 19.12: test sprawnościowy #3 — decyzja plank czy hollow hold
+- 21.12: kontrola krwi
+- 24.12–2.01: święta, protokół świąteczny z ROADMAP
+- 4.01.2027: blok ciężki, split
 
 REGUŁY, KTÓRE MUSISZ RESPEKTOWAĆ
 - Dwa tygodnie regresu siły z rzędu przy komplecie sesji oznaczają powrót
@@ -507,7 +606,7 @@ function ostatniaWaga({ entries, dzienne, skany, wymiary, testy, cardio }) {
    tydzień zapytany drugi raz dostaje ten sam charakter.
 
    Cisza z liczb: ocena snu 1–2/5, regres siły albo sygnał o wadze
-   „ostrzeżenie". Stałe tło (sen 5–6 h z dzieckiem) ciszy nie uruchamia —
+   „ostrzeżenie". Stałe tło (przerywany sen z dzieckiem) ciszy nie uruchamia —
    wcześniej uruchamiało ją w każdym raporcie, bo opis zawodnika wspomina
    o przerywanym śnie na stałe. Notatkę z bólem czy złym skanem czyta model. */
 function charakterOdpowiedzi({ tydzien, sen, sila, sygnaly }) {
@@ -737,7 +836,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.51";
+const WERSJA_APKI = "1.52";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -875,7 +974,7 @@ const USTAWIENIA_DOM = {
   fazy: [
     { from: "2026-08-01", to: "2026-09-01", label: "kalibracja", tone: 0, tempo: 0 },
     { from: "2026-09-01", to: "2026-11-01", label: "cykl 1 · FBW + sporty", tone: 1, tempo: 0.40 },
-    { from: "2026-11-01", to: "2027-01-04", label: "cykl 2 · PPL", tone: 1, tempo: 0.35 },
+    { from: "2026-11-01", to: "2027-01-04", label: "cykl 1b · FBW A/B/C", tone: 1, tempo: 0.40 },
     { from: "2027-01-04", to: "2027-03-28", label: "cykl 3 · blok ciężki", tone: 2, tempo: 0 },
     { from: "2027-03-28", to: "2027-07-25", label: "cykl 4 · dopięcie", tone: 1, tempo: 0.50 },
   ],
@@ -897,7 +996,7 @@ function wykryjSygnaly(entries, ustawienia, wydarzenia, dzis) {
      komplecie sesji oznaczają powrót do 0,28 — niezależnie od wagi. */
   if (n >= 2) {
     const a = entries[n - 2], b = entries[n - 1];
-    if (a.sila <= 2 && b.sila <= 2 && a.fbw >= 2 && b.fbw >= 2)
+    if (a.sila <= 2 && b.sila <= 2 && a.fbw >= kompletSesji(a.date) && b.fbw >= kompletSesji(b.date))
       f.push({ kod: "regres-sily", waga: "ostrzezenie",
         tekst: "Dwa tygodnie regresu siły z rzędu przy komplecie sesji.",
         akcja: "tempo-028" });
@@ -914,7 +1013,7 @@ function wykryjSygnaly(entries, ustawienia, wydarzenia, dzis) {
   }
 
   /* Deficyt powyżej 600 kcal jest pilniejszy od pozostałych sygnałów —
-     przy śnie 5–6 h grozi utratą masy beztłuszczowej. */
+     przy krótkim, przerywanym śnie grozi utratą masy beztłuszczowej. */
   if (n >= 4) {
     const w = entries.slice(-4).filter((e) => !e.poza);
     if (w.length >= 3) {
@@ -1056,7 +1155,7 @@ const CYKLE = [
     ],
   },
   {
-    id: "c1", nazwa: "Cykl 1 · FBW + sporty", okres: "1.09 – 31.10.2026", od: "2026-09-01", do: "2026-11-01",
+    id: "c1", nazwa: "Cykl 1 · FBW + sporty", okres: "1.09 – 1.11.2026", od: "2026-09-01", do: "2026-11-02", sesjiTydz: 2,
     opis: "4 wyjścia: 2 × FBW + basen + kalistenika/boks. Deficyt 0,40 kg/tydz. Zero serii do upadku na bojach.",
     sesje: [
       { l: "A", n: "FBW A", cw: [
@@ -1083,10 +1182,46 @@ const CYKLE = [
       ]},
     ],
   },
+  /* Cykl 2 (PPL) nie wystartował — przegląd 1.11 przedłużył FBW, a split
+     wchodzi w styczniu razem z blokiem ciężkim. Ćwiczenie z identyczną
+     nazwą jak w cyklu 1 zabiera ze sobą zapisane obciążenie, bo ciężary
+     są przypisane do nazwy. */
   {
-    id: "c2", nazwa: "Cykl 2 · PPL + sport", okres: "1.11 – 31.12.2026", od: "2026-11-01", do: "2027-01-04",
-    opis: "3 × PPL + 1 sport. Deficyt 0,35 kg/tydz. Szczegóły na przeglądzie pod koniec października.",
-    sesje: [],
+    id: "c1b", nazwa: "Cykl 1b · przedłużenie FBW", okres: "od 2.11.2026 · listopad, opcjonalnie do świąt",
+    od: "2026-11-02", do: "2027-01-04", sesjiTydz: 3,
+    opis: "3 sesje, czasem 4. Rotacja A → B → C → A, bez przypisania do dni; opuszczona sesja przesuwa kolejkę. Każda ok. 1,5 h: orbitrek 15 min, trening 60 min (pierwsze 7 min mobilność), orbitrek 15 min. Mobilność: otwieranie książki 8/str., ślizgi ramion po ścianie 10, band pull-apart 15, kot-wielbłąd 8, plus A: otwieranie bioder w wykroku 5/str., B: most biodrowy 10, C: zwis bierny 20 s. Deficyt 0,40 kg/tydz. Zero serii do upadku na bojach do końca roku. Przegląd pod koniec listopada.",
+    sesje: [
+      { l: "A", n: "FBW A", cw: [
+        { img: "przysiad", n: "Przysiad (sztanga lub goblet)", s: "3 × 6–10", r: 2, c: null, j: "kg" },
+        { img: "wyciskanie", n: "Wyciskanie hantli, ławka płaska", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "wioslowanie", n: "Wiosłowanie jednorącz (paski) — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "wioslowanieMasz2", n: "Wiosłowanie na maszynie (paski) — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "ohp", n: "OHP — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "ohpMaszSiedz", n: "Hammer iso-lateral shoulder press — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "farmer", n: "Farmer walk", s: "3 × 40 m, bez pasków", c: null, j: "kg" },
+        { img: "allahy", n: "Allahy", s: "3 × 8–12", c: null, j: "kg" },
+        { img: "wznosy", n: "Wznosy bokiem na wyciągu", s: "klaster 15-8-5", c: null, j: "kg" },
+        { img: "deadhang", n: "Deadhang", s: "2 × 30 s, przy reakcji łopatki nogi na podłodze", c: null, j: "s" },
+      ]},
+      { l: "B", n: "FBW B", cw: [
+        { img: "hyper45", n: "Wyprosty tułowia 45° z obciążeniem — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "hipthrust", n: "Hip thrust — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "podciaganie", n: "Podciąganie nachwytem (paski, magnezja)", s: "4 × 6–10", r: 2, c: null, j: "kg" },
+        { img: "skos", n: "Wyciskanie hantli, skos", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "facepull", n: "Face pull", s: "3 × 12–15", r: 2, c: null, j: "kg" },
+        { img: "kolana", n: "Unoszenie kolan w zwisie", s: "3 × 8–12", c: null, j: "powt." },
+        { img: "modlitewnik", n: "Modlitewnik", s: "klaster 15-8-5", c: null, j: "kg" },
+      ]},
+      { l: "C", n: "FBW C — sesja kalisteniczna", cw: [
+        { img: "podciaganie", n: "Podciąganie podchwytem (paski, magnezja)", s: "3 × 6–10", r: 2, c: null, j: "kg" },
+        { img: null, n: "Dipy", s: "3 × 8–15", r: 2, c: null, j: "kg" },
+        { img: null, n: "Wykroki chodzone z hantlami", s: "3 × 8–12 na nogę", r: 2, c: null, j: "kg" },
+        { img: null, n: "Pallof press na wyciągu", s: "3 × 10–12 na stronę", c: null, j: "kg" },
+        { img: null, n: "Hollow hold", s: "3 × 20–30 s", c: null, j: "s" },
+        { img: "wznosy", n: "Wznosy bokiem na wyciągu", s: "klaster 15-8-5", c: null, j: "kg" },
+        { img: "jefferson", n: "Jefferson curl", s: "2 × 8–10, lekko", c: null, j: "kg" },
+      ]},
+    ],
   },
   {
     id: "c3", nazwa: "Cykl 3 · blok ciężki", okres: "4.01 – 28.03.2027", od: "2027-01-04", do: "2027-03-29",
@@ -1181,6 +1316,14 @@ function statusCyklu(c, dzis) {
   return "aktualny";
 }
 
+/* Ile sesji FBW to komplet w tygodniu, który kończy się danego dnia. Cykl 1
+   zakładał dwie, cykl 1b trzy — reguła regresu siły „przy komplecie sesji"
+   i podpowiedź w formularzu biorą tę liczbę z planu, a nie ze stałej. */
+function kompletSesji(data) {
+  const c = CYKLE.find((x) => statusCyklu(x, data) === "aktualny");
+  return (c && c.sesjiTydz) || 2;
+}
+
 const KATEGORIA = {
   pomiar: "co miesiąc · obwody schodzą uczciwiej niż waga",
   test: "siła względem masy ciała",
@@ -1204,25 +1347,25 @@ const WYDARZENIA_INIT = [
 
   { d: "2026-10-01", t: "pomiar", n: "Wymiary ciała" },
   { d: "2026-10-01", t: "faza", n: "4 dni w biurze — start mealprepów" },
-  { d: "2026-11-01", t: "faza", n: "Cykl 2 · 3 × PPL + 1 sport" },
-  { d: "2026-10-24", t: "test", n: "Test sprawnościowy #2" },
-  { d: "2026-10-26", t: "faza", n: "Przegląd cyklu · powrót na 80%" },
+  { d: "2026-11-01", t: "test", n: "Test sprawnościowy #2" },
+  { d: "2026-11-01", t: "faza", n: "Przegląd cyklu 1" },
 
   { d: "2026-11-01", t: "pomiar", n: "Wymiary ciała" },
-  { d: "2026-11-15", t: "faza", n: "Kontrola snu → tempo deficytu" },
+  { d: "2026-11-02", t: "faza", n: "Cykl 1b · FBW A/B/C · podmiana PLAN.md" },
   { d: "2026-11-20", t: "faza", n: "Decyzja o Londynie" },
+  { d: "2026-11-30", t: "faza", n: "Przegląd cyklu 1b — FBW do świąt czy zmiana" },
 
   { d: "2026-12-01", t: "pomiar", n: "Wymiary ciała" },
   { d: "2026-12-18", t: "badanie", n: "DEXA #3" },
-  { d: "2026-12-19", t: "test", n: "Test sprawnościowy #3" },
+  { d: "2026-12-19", t: "test", n: "Test sprawnościowy #3 — decyzja plank czy hollow hold" },
   { d: "2026-12-21", t: "badanie", n: "Odstawić Seretide — 24 h przed spirometrią" },
   { d: "2026-12-22", t: "badanie", n: "Spirometria — kontrola (24 h bez leków)" },
   { d: "2026-12-21", t: "badanie", n: "Kontrola krwi" },
   { d: "2026-12-24", t: "wyjazd", n: "Święta — bez ważenia do 2 stycznia" },
-  { d: "2026-12-31", t: "faza", n: "Koniec cyklu 2 · cel 90,0 kg" },
+  { d: "2026-12-31", t: "faza", n: "Koniec roku · cel 90,0 kg" },
 
   { d: "2027-01-01", t: "pomiar", n: "Wymiary ciała" },
-  { d: "2027-01-04", t: "faza", n: "Cykl 3 · blok ciężki · 5 sesji, zero sportu" },
+  { d: "2027-01-04", t: "faza", n: "Cykl 3 · blok ciężki, split · 5 sesji, zero sportu" },
 
   { d: "2027-02-01", t: "pomiar", n: "Wymiary ciała" },
   
@@ -1544,7 +1687,7 @@ export default function Mockup() {
   /* Pola formularza tygodniowego. W mockupie były narysowane na sztywno —
      tutaj muszą trzymać wartość, bo z nich powstaje rekord tygodnia. */
   const [sen, setSen] = useState(3);
-  const [fbw, setFbw] = useState(2);
+  const [fbw, setFbw] = useState(() => kompletSesji(dzisIso()));
   const [sila, setSila] = useState(2);
   const [akty, setAkty] = useState([]);
   const [cheaty, setCheaty] = useState(0);
@@ -2072,7 +2215,8 @@ export default function Mockup() {
     setMakroB(""); setMakroT(""); setMakroW("");
     setDniWaga(Array(dniOkresu).fill(""));
     setDniKcal(Array(dniOkresu).fill(""));
-    setSen(3); setFbw(2); setSila(2); setAkty([]); setCheaty(0);
+    setSen(3); setFbw(kompletSesji(isoLokalne(new Date(d(dataWpisu) + 7 * 864e5))));
+    setSila(2); setAkty([]); setCheaty(0);
     setNotatka(""); setPoza(false); setKom(""); setSkopiowane(false);
     setImp(null); setImpW(null); setImpBlad(null);
     setStage("form");
@@ -3062,7 +3206,7 @@ ZASADY:
     /* Jednostki i skale wypisane wprost. Bez tego „2,5 / 5" bywa czytane
        jako godziny snu — to nie jest błąd czytającego, tylko raportu. */
     L.push(`Sen — subiektywna ocena jakości w skali 1–5, gdzie 1 to noc rozbita: ${sr((e) => e.sleep).toFixed(1)}`);
-    L.push(`  (liczby godzin nie mierzymy; wyjściowo jest to 5–6 h z przerwami)`);
+    L.push(`  (liczby godzin nie mierzymy; do października było to 5–6 h z przerwami, od listopada 6–8 h)`);
     L.push(`Sesje FBW na tydzień: ${sr((e) => e.fbw).toFixed(1)}`);
     L.push(`Progres siły: ${SILA[Math.max(0, Math.min(4, latest.sila - 1))]}`);
     const licznik = {};
@@ -3578,7 +3722,7 @@ ZASADY:
           </div>
 
           <div className="frow">
-            <span className="fkey">FBW <em>minimum: 2</em></span>
+            <span className="fkey">FBW <em>komplet: {kompletSesji(dataWpisu)}</em></span>
             <div className="fval"><div className="pips">
               {[0,1,2,3,4].map((n) => (
                 <button key={n} className={n===fbw?"pip on":"pip"}

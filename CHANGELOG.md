@@ -10,6 +10,41 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.52 — 1 listopada 2026
+
+**Cykl 1b — przedłużenie FBW.** Przegląd cyklu 1 przedłużył FBW zamiast
+startu PPL. W Planie treningowym jest cykl 1b (od 2.11) z trzema sesjami
+FBW A, B i C, przepisanymi z PLAN.md: ćwiczenia, serie, zakresy i RIR, plus
+w opisie struktura sesji z orbitrekiem i mobilnością. Cykl 2 (PPL) zniknął
+z listy, bo nie wystartował; cykl 1 jest domknięty 1.11. Ćwiczenia
+o tej samej nazwie co w cyklu 1 zabierają ze sobą zapisane obciążenie.
+
+**Trzecia sesja w tygodniu.** Apka zakładała dwa FBW na tydzień w trzech
+miejscach. Reguła „dwa tygodnie regresu siły przy komplecie sesji" liczyła
+komplet jako 2 FBW, więc w cyklu 1b uznałaby za komplet tydzień z jedną
+opuszczoną sesją. Formularz podpowiadał „minimum: 2", a nowy tydzień
+startował z dwójką. Komplet bierze się teraz z planu: 2 w cyklu 1, 3 od
+cyklu 1b. Formularz pokazuje „komplet: 3".
+
+**Ronnie zna nowy plan.** Kontekst trenera opisuje stan po przeglądzie:
+- cykl 2 nie wystartował, do końca listopada (opcjonalnie do świąt) jedzie
+  FBW A/B/C, z pełną treścią sesji, zasad i decyzji planu;
+- orbitrek zamiast basenu jako główna kondycja, basen opcjonalny,
+  kalisteniki nie ma;
+- sen 6–8 h, a listopadowa kontrola snu jest zamknięta;
+- tempo 0,40 kg/tydz.;
+- wyniki testu #2 na tle baseline;
+- DEXA w grudniu jako ostatnia próba metody, po południu, nie na czczo;
+- terminy do bloku ciężkiego.
+
+Raport wysyłany Ronniemu mówił też, że sen to „wyjściowo 5–6 h" — teraz
+podaje zmianę na 6–8 h od listopada.
+
+**Domyślny kalendarz i fazy.** Dla nowej instalacji zniknęły błędne terminy
+(test 24.10, przegląd 26.10, kontrola snu 15.11) i faza „cykl 2 · PPL,
+0,35". Zapisanych danych to nie zmienia: kalendarz i tempo w Plan i tempo
+poprawia się w apce.
+
 ## v1.51 — 25 października 2026
 
 **Błędy przy polach zamiast okienek.** Dziewięć formularzy (tydzień, sprawność,
