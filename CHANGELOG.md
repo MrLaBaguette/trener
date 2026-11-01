@@ -22,6 +22,13 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 Kontekst Ronniego opisuje te same sesje.
 
+**Miniatury dla nowych ćwiczeń.** Crunche na skośnej ławce, dipy, wykroki
+z hantlami, Pallof press i hollow hold miały puste pola zamiast obrazka.
+Dostały własne rysunki SVG w palecie pozostałych miniatur: jasna sylwetka,
+czarne spodenki, ćwiczone mięśnie na czerwono, szary sprzęt. Są prostsze niż
+klatki z bazy animacji, ale nie pochodzą z cudzej bazy, więc mogą leżeć
+w publicznym repozytorium.
+
 ## v1.52 — 1 listopada 2026
 
 **Cykl 1b — przedłużenie FBW.** Przegląd cyklu 1 przedłużył FBW zamiast

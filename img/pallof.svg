@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- Pallof press: bokiem do wyciągu, uchwyt wypchnięty przed mostek, tułów nie daje się skręcić. -->
+  <rect width="300" height="300" fill="#fff"/>
+  <g stroke-linecap="round" fill="none">
+    <path d="M44 34 V270 M78 34 V270 M30 272 H96 M40 34 H82" stroke="#a3a3a3" stroke-width="10"/>
+    <path d="M44 34 V270 M78 34 V270" stroke="#dcdcdc" stroke-width="6"/>
+    <rect x="50" y="170" width="22" height="80" fill="#3b3b3b" stroke="none"/>
+  </g>
+  <circle cx="80" cy="124" r="9" fill="#dcdcdc" stroke="#a3a3a3" stroke-width="4"/>
+  <line x1="84" y1="124" x2="182" y2="124" stroke="#555" stroke-width="2.5"/>
+  <defs>
+    <path id="tulow" d="M182 98 L182 160"/>
+    <path id="szyja" d="M182 84 L182 70"/>
+    <path id="barkL" d="M160 92 L204 92"/>
+    <path id="udoL" d="M170 166 L164 214"/>
+    <path id="udoP" d="M194 166 L200 214"/>
+    <path id="podudzieL" d="M164 214 L160 260"/>
+    <path id="podudzieP" d="M200 214 L204 260"/>
+    <path id="ramieL" d="M160 94 L160 128"/>
+    <path id="ramieP" d="M204 94 L204 128"/>
+    <path id="przedL" d="M160 128 L178 124"/>
+    <path id="przedP" d="M204 128 L186 124"/>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#8f8f8f">
+      <use href="#tulow" stroke-width="51"/>
+      <use href="#barkL" stroke-width="23"/>
+      <use href="#szyja" stroke-width="19"/>
+      <use href="#udoL" stroke-width="28"/>
+      <use href="#udoP" stroke-width="28"/>
+      <use href="#podudzieL" stroke-width="21"/>
+      <use href="#podudzieP" stroke-width="21"/>
+    </g>
+    <g stroke="#f1f1f1">
+      <use href="#tulow" stroke-width="46"/>
+      <use href="#barkL" stroke-width="18"/>
+      <use href="#szyja" stroke-width="14"/>
+      <use href="#udoL" stroke-width="23"/>
+      <use href="#udoP" stroke-width="23"/>
+      <use href="#podudzieL" stroke-width="16"/>
+      <use href="#podudzieP" stroke-width="16"/>
+    </g>
+  </g>
+  <path d="M168 168 H196" stroke="#262626" stroke-width="30" stroke-linecap="round"/>
+  <path d="M166 186 L164 196 M198 186 L200 196" stroke="#262626" stroke-width="24" stroke-linecap="round"/>
+  <rect x="174" y="118" width="16" height="36" rx="5" fill="#e0574c" opacity=".9"/>
+  <ellipse cx="164" cy="140" rx="5" ry="13" fill="#c9443a" opacity=".85"/>
+  <ellipse cx="200" cy="140" rx="5" ry="13" fill="#c9443a" opacity=".85"/>
+  <circle cx="182" cy="56" r="18" fill="#f1f1f1" stroke="#8f8f8f" stroke-width="2.5"/>
+  <path d="M164 54 A18 18 0 0 1 200 54 L196 46 A16 14 0 0 0 168 46 Z" fill="#4a4a4a"/>
+  <g fill="none" stroke-linecap="round">
+    <use href="#ramieL" stroke="#8f8f8f" stroke-width="19"/>
+    <use href="#ramieP" stroke="#8f8f8f" stroke-width="19"/>
+    <use href="#przedL" stroke="#8f8f8f" stroke-width="17"/>
+    <use href="#przedP" stroke="#8f8f8f" stroke-width="17"/>
+    <use href="#ramieL" stroke="#f1f1f1" stroke-width="14"/>
+    <use href="#ramieP" stroke="#f1f1f1" stroke-width="14"/>
+    <use href="#przedL" stroke="#f1f1f1" stroke-width="12"/>
+    <use href="#przedP" stroke="#f1f1f1" stroke-width="12"/>
+  </g>
+  <rect x="174" y="118" width="16" height="11" rx="3" fill="#2a2a2a"/>
+</svg>

@@ -1092,6 +1092,10 @@ const MINI = Object.fromEntries(
    "uginanieLinka", "tricepsLinka",
    "hyper45", "hipthrust", "ohpMaszSiedz", "wioslowanieMasz2"].map((n) => [n, MINI_BASE + n + ".webp"])
 );
+/* Ćwiczenia cyklu 1b, dla których w bazie animacji nie było klatki — rysunki
+   SVG w tej samej palecie: jasna sylwetka, czarne spodenki, ćwiczone mięśnie
+   na czerwono. Uproszczone, ale własne, więc mogą leżeć w publicznym repo. */
+["crunche", "dipy", "wykroki", "pallof", "hollow"].forEach((n) => { MINI[n] = MINI_BASE + n + ".svg"; });
 
 
 /* ── PLANY TRENINGOWE ─────────────────────────────────────────
@@ -1195,7 +1199,7 @@ const CYKLE = [
         { img: "ohp", n: "OHP — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "ohpMaszSiedz", n: "Hammer iso-lateral shoulder press — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "farmer", n: "Farmer walk", s: "3 × 40 m, bez pasków", c: null, j: "kg" },
-        { img: null, n: "Crunche na skośnej ławce", s: "3 × 8–12", c: null, j: "kg" },
+        { img: "crunche", n: "Crunche na skośnej ławce", s: "3 × 8–12", c: null, j: "kg" },
         /* Ta sama nazwa co w planie maszynowym — ciężar zapisany wtedy wraca. */
         { img: "wznosHantel", n: "Wznosy bokiem hantlami stojąc", s: "klaster 15-8-5", c: null, j: "kg" },
         { img: "deadhang", n: "Deadhang", s: "2 × 30 s, przy reakcji łopatki nogi na podłodze", c: null, j: "s" },
@@ -1211,10 +1215,10 @@ const CYKLE = [
       ]},
       { l: "C", n: "FBW C — sesja kalisteniczna", cw: [
         { img: "podciaganie", n: "Podciąganie podchwytem (paski, magnezja)", s: "3 × 6–10", r: 2, c: null, j: "kg" },
-        { img: null, n: "Dipy", s: "3 × 8–15", r: 2, c: null, j: "kg" },
-        { img: null, n: "Wykroki chodzone z hantlami", s: "3 × 8–12 na nogę", r: 2, c: null, j: "kg" },
-        { img: null, n: "Pallof press na wyciągu", s: "3 × 10–12 na stronę", c: null, j: "kg" },
-        { img: null, n: "Hollow hold", s: "3 × 20–30 s", c: null, j: "s" },
+        { img: "dipy", n: "Dipy", s: "3 × 8–15", r: 2, c: null, j: "kg" },
+        { img: "wykroki", n: "Wykroki chodzone z hantlami", s: "3 × 8–12 na nogę", r: 2, c: null, j: "kg" },
+        { img: "pallof", n: "Pallof press na wyciągu", s: "3 × 10–12 na stronę", c: null, j: "kg" },
+        { img: "hollow", n: "Hollow hold", s: "3 × 20–30 s", c: null, j: "s" },
         { img: "wznosy", n: "Wznosy bokiem na wyciągu", s: "klaster 15-8-5", c: null, j: "kg" },
       ]},
     ],

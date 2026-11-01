@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- Hollow hold: lędźwie na podłodze, łopatki i nogi w górze, ręce za głową. -->
+  <rect width="300" height="300" fill="#fff"/>
+  <line x1="14" y1="231" x2="286" y2="231" stroke="#e4e4e4" stroke-width="3" stroke-linecap="round"/>
+  <defs>
+    <path id="tulow" d="M104 196 L166 211"/>
+    <path id="szyja" d="M104 196 L86 188"/>
+    <path id="ramie" d="M106 192 L66 172"/>
+    <path id="przedramie" d="M66 172 L28 158"/>
+    <path id="udo" d="M166 211 L222 196"/>
+    <path id="podudzie" d="M222 196 L270 182"/>
+    <path id="stopa" d="M270 182 L282 170"/>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#8f8f8f">
+      <use href="#tulow" stroke-width="45"/>
+      <use href="#szyja" stroke-width="19"/>
+      <use href="#udo" stroke-width="30"/>
+      <use href="#podudzie" stroke-width="22"/>
+      <use href="#stopa" stroke-width="14"/>
+    </g>
+    <g stroke="#f1f1f1">
+      <use href="#tulow" stroke-width="40"/>
+      <use href="#szyja" stroke-width="14"/>
+      <use href="#udo" stroke-width="25"/>
+      <use href="#podudzie" stroke-width="17"/>
+      <use href="#stopa" stroke-width="9"/>
+    </g>
+  </g>
+  <circle cx="76" cy="183" r="17" fill="#f1f1f1" stroke="#8f8f8f" stroke-width="2.5"/>
+  <path d="M61 176 A17 17 0 0 1 90 172 L84 168 A12 12 0 0 0 64 172 Z" fill="#4a4a4a"/>
+  <path d="M150 214 L194 203" stroke="#262626" stroke-width="32" stroke-linecap="round"/>
+  <ellipse cx="136" cy="194" rx="28" ry="9" transform="rotate(13 136 194)" fill="#e0574c" opacity=".9"/>
+  <ellipse cx="128" cy="196" rx="9" ry="5" transform="rotate(13 128 196)" fill="#c9443a" opacity=".55"/>
+  <ellipse cx="146" cy="199" rx="9" ry="5" transform="rotate(13 146 199)" fill="#c9443a" opacity=".55"/>
+  <g fill="none" stroke-linecap="round">
+    <use href="#ramie" stroke="#8f8f8f" stroke-width="21"/>
+    <use href="#przedramie" stroke="#8f8f8f" stroke-width="18"/>
+    <use href="#ramie" stroke="#f1f1f1" stroke-width="16"/>
+    <use href="#przedramie" stroke="#f1f1f1" stroke-width="13"/>
+  </g>
+</svg>

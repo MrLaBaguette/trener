@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- Wykrok z hantlami: przednie kolano nad stopą, tylne tuż nad podłogą, tułów pionowo. -->
+  <rect width="300" height="300" fill="#fff"/>
+  <line x1="40" y1="264" x2="262" y2="264" stroke="#e4e4e4" stroke-width="3" stroke-linecap="round"/>
+  <defs>
+    <path id="tulow" d="M150 76 L148 150"/>
+    <path id="szyja" d="M150 76 L152 60"/>
+    <path id="udoP" d="M150 150 L198 194"/>
+    <path id="podudzieP" d="M198 194 L198 250"/>
+    <path id="stopaP" d="M198 252 L218 254"/>
+    <path id="udoT" d="M146 150 L120 232"/>
+    <path id="podudzieT" d="M120 232 L76 236"/>
+    <path id="stopaT" d="M76 236 L64 254"/>
+    <path id="ramie" d="M150 82 L150 124"/>
+    <path id="przedramie" d="M150 124 L152 164"/>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#8f8f8f">
+      <use href="#udoT" stroke-width="30"/>
+      <use href="#podudzieT" stroke-width="22"/>
+      <use href="#stopaT" stroke-width="14"/>
+    </g>
+    <g stroke="#e3e3e3">
+      <use href="#udoT" stroke-width="25"/>
+      <use href="#podudzieT" stroke-width="17"/>
+      <use href="#stopaT" stroke-width="9"/>
+    </g>
+    <g stroke="#8f8f8f">
+      <use href="#tulow" stroke-width="45"/>
+      <use href="#szyja" stroke-width="19"/>
+      <use href="#udoP" stroke-width="30"/>
+      <use href="#podudzieP" stroke-width="22"/>
+      <use href="#stopaP" stroke-width="14"/>
+    </g>
+    <g stroke="#f1f1f1">
+      <use href="#tulow" stroke-width="40"/>
+      <use href="#szyja" stroke-width="14"/>
+      <use href="#udoP" stroke-width="25"/>
+      <use href="#podudzieP" stroke-width="17"/>
+      <use href="#stopaP" stroke-width="9"/>
+    </g>
+  </g>
+  <path d="M148 146 L170 168" stroke="#262626" stroke-width="32" stroke-linecap="round"/>
+  <ellipse cx="182" cy="180" rx="16" ry="9" transform="rotate(42 182 180)" fill="#e0574c" opacity=".9"/>
+  <ellipse cx="131" cy="150" rx="9" ry="14" fill="#e0574c" opacity=".9"/>
+  <circle cx="153" cy="46" r="17" fill="#f1f1f1" stroke="#8f8f8f" stroke-width="2.5"/>
+  <path d="M137 42 A17 17 0 0 1 168 38 L162 34 A13 13 0 0 0 141 36 Z" fill="#4a4a4a"/>
+  <g fill="none" stroke-linecap="round">
+    <use href="#ramie" stroke="#8f8f8f" stroke-width="21"/>
+    <use href="#przedramie" stroke="#8f8f8f" stroke-width="18"/>
+    <use href="#ramie" stroke="#f1f1f1" stroke-width="16"/>
+    <use href="#przedramie" stroke="#f1f1f1" stroke-width="13"/>
+  </g>
+  <g fill="#2a2a2a">
+    <rect x="132" y="160" width="40" height="7" rx="3"/>
+    <rect x="126" y="150" width="11" height="27" rx="3"/>
+    <rect x="167" y="150" width="11" height="27" rx="3"/>
+  </g>
+</svg>

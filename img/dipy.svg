@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- Dipy na poręczach, dół ruchu: ramię równolegle do podłogi, tułów lekko w przód. -->
+  <rect width="300" height="300" fill="#fff"/>
+  <g stroke-linecap="round" fill="none">
+    <path d="M70 146 V268 M224 146 V268 M50 270 H244" stroke="#a3a3a3" stroke-width="10"/>
+    <path d="M70 146 V268 M224 146 V268" stroke="#dcdcdc" stroke-width="6"/>
+  </g>
+  <defs>
+    <path id="tulow" d="M184 108 L150 172"/>
+    <path id="szyja" d="M184 108 L198 92"/>
+    <path id="udo" d="M150 172 L146 228"/>
+    <path id="podudzie" d="M146 228 L104 220"/>
+    <path id="stopa" d="M104 220 L94 232"/>
+    <path id="ramie" d="M180 108 L136 106"/>
+    <path id="przedramie" d="M136 106 L142 142"/>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#8f8f8f">
+      <use href="#tulow" stroke-width="45"/>
+      <use href="#szyja" stroke-width="19"/>
+      <use href="#udo" stroke-width="30"/>
+      <use href="#podudzie" stroke-width="22"/>
+      <use href="#stopa" stroke-width="14"/>
+    </g>
+    <g stroke="#f1f1f1">
+      <use href="#tulow" stroke-width="40"/>
+      <use href="#szyja" stroke-width="14"/>
+      <use href="#udo" stroke-width="25"/>
+      <use href="#podudzie" stroke-width="17"/>
+      <use href="#stopa" stroke-width="9"/>
+    </g>
+  </g>
+  <path d="M152 170 L149 190" stroke="#262626" stroke-width="32" stroke-linecap="round"/>
+  <ellipse cx="194" cy="126" rx="14" ry="10" transform="rotate(62 194 126)" fill="#e0574c" opacity=".9"/>
+  <circle cx="206" cy="78" r="17" fill="#f1f1f1" stroke="#8f8f8f" stroke-width="2.5"/>
+  <path d="M191 71 A17 17 0 0 1 220 70 L214 64 A13 13 0 0 0 195 65 Z" fill="#4a4a4a"/>
+  <g fill="none" stroke-linecap="round">
+    <use href="#ramie" stroke="#8f8f8f" stroke-width="21"/>
+    <use href="#przedramie" stroke="#8f8f8f" stroke-width="18"/>
+    <use href="#ramie" stroke="#f1f1f1" stroke-width="16"/>
+    <use href="#przedramie" stroke="#f1f1f1" stroke-width="13"/>
+  </g>
+  <ellipse cx="156" cy="101" rx="14" ry="5" fill="#e0574c" opacity=".9"/>
+  <path d="M50 146 H246" stroke="#8f8f8f" stroke-width="12" stroke-linecap="round"/>
+  <path d="M50 146 H246" stroke="#cfcfcf" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="142" cy="143" r="8" fill="#f1f1f1" stroke="#8f8f8f" stroke-width="2.5"/>
+</svg>
