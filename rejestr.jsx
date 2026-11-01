@@ -228,18 +228,17 @@ most biodrowy 10, w C zwis bierny 20 s.
 FBW A: przysiad (sztanga lub goblet) 3 × 6–10, RIR 2; wyciskanie hantli
 na ławce płaskiej 3 × 8–12, RIR 2; wiosłowanie jednorącz lub na maszynie
 (paski) 3 × 8–12, RIR 2; OHP lub Hammer iso-lateral shoulder press
-3 × 8–12, RIR 2; farmer walk 3 × 40 m bez pasków; allahy 3 × 8–12; wznosy
-bokiem na wyciągu klaster 15-8-5; deadhang 2 × 30 s (przy reakcji łopatki
-nogi na podłodze).
-FBW B: wyprosty tułowia 45° z obciążeniem lub hip thrust 3 × 8–12, RIR 2;
-podciąganie nachwytem (paski, magnezja) 4 × 6–10, RIR 2; wyciskanie hantli
-na skosie 3 × 8–12, RIR 2; face pull 3 × 12–15, RIR 2; unoszenie kolan
-w zwisie 3 × 8–12; modlitewnik klaster 15-8-5.
+3 × 8–12, RIR 2; farmer walk 3 × 40 m bez pasków; crunche na skośnej ławce
+3 × 8–12; wznosy bokiem z hantlami klaster 15-8-5; deadhang 2 × 30 s (przy
+reakcji łopatki nogi na podłodze).
+FBW B: wyprosty tułowia 45° z obciążeniem 3 × 8–12, RIR 2; podciąganie
+nachwytem (paski, magnezja) 4 × 6–10, RIR 2; wyciskanie hantli na skosie
+3 × 8–12, RIR 2; face pull 3 × 12–15, RIR 2; unoszenie kolan w zwisie
+3 × 8–12; modlitewnik klaster 15-8-5; Jefferson curl 2 × 8–10, lekko.
 FBW C, sesja kalisteniczna: podciąganie podchwytem (paski, magnezja)
 3 × 6–10, RIR 2; dipy 3 × 8–15, RIR 2; wykroki chodzone z hantlami
 3 × 8–12 na nogę, RIR 2; Pallof press na wyciągu 3 × 10–12 na stronę;
-hollow hold 3 × 20–30 s; wznosy bokiem na wyciągu klaster 15-8-5;
-Jefferson curl 2 × 8–10, lekko.
+hollow hold 3 × 20–30 s; wznosy bokiem na wyciągu klaster 15-8-5.
 
 Zasady cyklu:
 - Progresja podwójna: ciężar stoi, dopóki nie trafi górnej granicy zakresu
@@ -271,10 +270,7 @@ Decyzje planu, których nie podważasz bez przeglądu cyklu:
   mierzy test.
 - RDL nadal poza planem. Wyprosty 45° z +20 kg to zawias biodrowy bez
   obciążenia osiowego i bez trzymania ciężaru w dłoniach, co przy łopatce
-  ma znaczenie. RDL to zadanie na pierwsze tygodnie bloku ciężkiego. Hip
-  thrust zostaje zamiennikiem na dni, kiedy plecy protestują.
-- Jefferson curl w C, nie w B — lędźwie dostają dwa lżejsze bodźce
-  w tygodniu zamiast jednego skumulowanego.
+  ma znaczenie. RDL to zadanie na pierwsze tygodnie bloku ciężkiego.
 - Pallof press zamiast klasycznych skosów: antyrotacja. Skręty z obciążeniem
   przy okresowym bólu pleców to zła wymiana.
 - Hollow hold to miesiąc nauki pozycji przed decyzją o podmianie planku
@@ -836,7 +832,7 @@ function chwilaZ(znacznik) {
   return `${isoLokalne(dt)} ${godzinaZ(znacznik)}`;
 }
 
-const WERSJA_APKI = "1.52";
+const WERSJA_APKI = "1.53";
 
 const SCHEMA = 2;
 const KLUCZ = "rejestr:v2";
@@ -1199,18 +1195,19 @@ const CYKLE = [
         { img: "ohp", n: "OHP — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "ohpMaszSiedz", n: "Hammer iso-lateral shoulder press — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "farmer", n: "Farmer walk", s: "3 × 40 m, bez pasków", c: null, j: "kg" },
-        { img: "allahy", n: "Allahy", s: "3 × 8–12", c: null, j: "kg" },
-        { img: "wznosy", n: "Wznosy bokiem na wyciągu", s: "klaster 15-8-5", c: null, j: "kg" },
+        { img: null, n: "Crunche na skośnej ławce", s: "3 × 8–12", c: null, j: "kg" },
+        /* Ta sama nazwa co w planie maszynowym — ciężar zapisany wtedy wraca. */
+        { img: "wznosHantel", n: "Wznosy bokiem hantlami stojąc", s: "klaster 15-8-5", c: null, j: "kg" },
         { img: "deadhang", n: "Deadhang", s: "2 × 30 s, przy reakcji łopatki nogi na podłodze", c: null, j: "s" },
       ]},
       { l: "B", n: "FBW B", cw: [
-        { img: "hyper45", n: "Wyprosty tułowia 45° z obciążeniem — wariant A", s: "3 × 8–12", r: 2, c: null, j: "kg" },
-        { img: "hipthrust", n: "Hip thrust — wariant B", s: "3 × 8–12", r: 2, c: null, j: "kg" },
+        { img: "hyper45", n: "Wyprosty tułowia 45° z obciążeniem", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "podciaganie", n: "Podciąganie nachwytem (paski, magnezja)", s: "4 × 6–10", r: 2, c: null, j: "kg" },
         { img: "skos", n: "Wyciskanie hantli, skos", s: "3 × 8–12", r: 2, c: null, j: "kg" },
         { img: "facepull", n: "Face pull", s: "3 × 12–15", r: 2, c: null, j: "kg" },
         { img: "kolana", n: "Unoszenie kolan w zwisie", s: "3 × 8–12", c: null, j: "powt." },
         { img: "modlitewnik", n: "Modlitewnik", s: "klaster 15-8-5", c: null, j: "kg" },
+        { img: "jefferson", n: "Jefferson curl", s: "2 × 8–10, lekko", c: null, j: "kg" },
       ]},
       { l: "C", n: "FBW C — sesja kalisteniczna", cw: [
         { img: "podciaganie", n: "Podciąganie podchwytem (paski, magnezja)", s: "3 × 6–10", r: 2, c: null, j: "kg" },
@@ -1219,7 +1216,6 @@ const CYKLE = [
         { img: null, n: "Pallof press na wyciągu", s: "3 × 10–12 na stronę", c: null, j: "kg" },
         { img: null, n: "Hollow hold", s: "3 × 20–30 s", c: null, j: "s" },
         { img: "wznosy", n: "Wznosy bokiem na wyciągu", s: "klaster 15-8-5", c: null, j: "kg" },
-        { img: "jefferson", n: "Jefferson curl", s: "2 × 8–10, lekko", c: null, j: "kg" },
       ]},
     ],
   },

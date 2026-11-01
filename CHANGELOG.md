@@ -10,6 +10,18 @@ nie odtwarzam, bo commity powstawały przez zbiorcze wgranie plików.
 
 ---
 
+## v1.53 — 1 listopada 2026
+
+**Poprawki w cyklu 1b.**
+- FBW A: allahy zastąpione crunchami na skośnej ławce (3 × 8–12), a wznosy
+  bokiem na wyciągu — wznosami z hantlami, nadal klasterem 15-8-5. Wznosy
+  z hantlami mają nazwę z planu maszynowego, więc zapisany wtedy ciężar
+  wraca.
+- FBW B: bez hip thrustu, z Jefferson curlem przeniesionym z FBW C.
+  Wyprosty 45° nie są już wariantem, więc straciły dopisek „wariant A".
+
+Kontekst Ronniego opisuje te same sesje.
+
 ## v1.52 — 1 listopada 2026
 
 **Cykl 1b — przedłużenie FBW.** Przegląd cyklu 1 przedłużył FBW zamiast
